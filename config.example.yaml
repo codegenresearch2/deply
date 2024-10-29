@@ -1,0 +1,6 @@
+rules:
+  - name: NoCrossAppModelUsageRule
+    enabled: true
+    params:
+      target_files: [ "views_api.py", "tasks.py", "providers.py" ]
+      exclude_apps: [ "" ]
