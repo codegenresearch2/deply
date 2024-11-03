@@ -1,6 +1,20 @@
-rules:
-  - name: NoCrossAppModelUsageRule
-    enabled: true
-    params:
-      target_files: [ "views_api.py", "tasks.py", "providers.py" ]
-      exclude_apps: [ "" ]
+layers:
+  - name: models
+    collectors:
+      - type: class_inherits
+        base_class: "django.db.models.Model"
+
+  - name: services
+    collectors:
+      - type: file_regex
+        regex: "^.*/providers.py$"
+
+  - name: views
+    collectors:
+      - type: file_regex
+        regex: ".*/views_api.py"
+
+ruleset:
+  views:
+    disallow:
+      - models

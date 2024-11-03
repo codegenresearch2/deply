@@ -1,36 +1,34 @@
 import argparse
-import os
-import sys
-
-import yaml
-
-from .reporter import Reporter
-from .rule_loader import load_rules
+from pathlib import Path
+from .config_parser import ConfigParser
+from .code_analyzer import CodeAnalyzer
+from .reports.report_generator import ReportGenerator
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Architecture Checker')
-    parser.add_argument('--config', type=str, help='Path to the configuration file', default='config.yaml')
-    parser.add_argument('--project_root', type=str, help='Path to project root', default=os.getcwd())
+    parser = argparse.ArgumentParser(prog="architecture_checker")
+    parser.add_argument("--config", type=str, help="Path to the configuration YAML file")
+    parser.add_argument("--project_root", type=str, help="Root directory of the project to analyze")
+    parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text")
+    parser.add_argument("--output", type=str, help="Output file for the report")
     args = parser.parse_args()
 
-    project_root = args.project_root
-    config_path = args.config
+    config_path = Path(args.config)
+    project_root = Path(args.project_root)
 
-    try:
-        with open(config_path, 'r') as f:
-            config = yaml.safe_load(f)
-    except FileNotFoundError:
-        print(f"Configuration file not found at {config_path}")
-        sys.exit(1)
+    config = ConfigParser(config_path).parse()
+    analyzer = CodeAnalyzer(config, project_root)
+    violations = analyzer.analyze()
 
-    rules = load_rules(config, project_root)
+    report_generator = ReportGenerator(violations)
+    report = report_generator.generate(format=args.report_format)
 
-    reporter = Reporter()
-    for rule in rules:
-        rule.run()
-        violations = rule.report()
-        reporter.collect(violations)
+    if args.output:
+        output_path = Path(args.output)
+        output_path.write_text(report)
+    else:
+        print(report)
 
-    exit_code = reporter.generate_report()
-    sys.exit(exit_code)
+
+if __name__ == "__main__":
+    main()
