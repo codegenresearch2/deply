@@ -1,7 +1,17 @@
 # Architecture Checker
 
-**Architecture Checker** is a Python tool to enforce architectural patterns in Django projects, ensuring modularity,
-maintainability, and compliance with predefined architectural rules.
+**Architecture Checker** is a standalone Python tool for enforcing architectural patterns and dependencies in large
+Django projects. By analyzing code structure and dependencies, this tool ensures that architectural rules are followed,
+promoting cleaner, more maintainable, and modular codebases.
+
+Inspired by https://github.com/qossmic/deptrac
+
+## Features
+
+- **Layer-Based Analysis**: Define project layers and restrict their dependencies to enforce modularity.
+- **Dynamic Layer Configuration**: Easily configure collectors for each layer using file patterns and class inheritance.
+- **Cross-Layer Dependency Rules** (TODO): Specify rules to disallow certain layers from accessing others.
+- **Extensible and Configurable**: Customize layers and rules for any Django project setup.
 
 ## Installation
 
@@ -19,20 +29,28 @@ files to enforce.
 ### Example Configuration (`config.example.yaml`)
 
 ```yaml
-rules:
-  - name: NoCrossAppModelUsageRule
-    enabled: true
-    params:
-      target_files: [ "*.py" ]
-      exclude_apps: [ "admin", "auth" ]
-```
+layers:
+  - name: models
+    collectors:
+      - type: class_inherits
+        base_class: "django.db.models.Model"
 
-- **rules**: A list of architectural rules to enforce.
-    - **name**: The class name of the rule (e.g., `NoCrossAppModelUsageRule`).
-    - **enabled**: Boolean indicating if the rule should be active.
-    - **params**: Rule-specific parameters.
-        - **target_files**: Specifies files to check using wildcard patterns (e.g., `["*.py"]` for all Python files).
-        - **exclude_apps**: Apps to exclude from this rule.
+  - name: services
+    collectors:
+      - type: file_regex
+        regex: "^.*/providers.py$"
+
+  - name: views
+    collectors:
+      - type: file_regex
+        regex: ".*/views_api.py"
+
+ruleset:
+  views:
+    disallow:
+      - models  # Disallows direct access to models in views
+
+```
 
 ## Usage
 
@@ -53,28 +71,7 @@ If violations are found, the tool will output a summary of architectural violati
 of each violation, such as the file, line number, and violation message.
 
 ```plaintext
-
-App: app1 (Violations: 2)
-  - app1/views.py:15 - Importing models ['SomeModel'] from 'app2' in 'app1' is not allowed.
-  - app1/tasks.py:42 - Importing models ['AnotherModel'] from 'app2' in 'app1' is not allowed.
-----------------------------------------
-
-App: app2 (Violations: 1)
-  - app2/providers.py:20 - Importing models ['ThirdModel'] from 'app3' in 'app2' is not allowed.
-----------------------------------------
-
-
-Architectural Violations Report:
-========================================
-Total Violations: 3
-Impacted Apps: 2
-
-```
-
-If no violations are detected:
-
-```plaintext
-No architectural violations found.
+/path/to/your_project/your_project/app1/views_api.py:74 - Layer 'views' is not allowed to depend on layer 'models'
 ```
 
 ## Running Tests
