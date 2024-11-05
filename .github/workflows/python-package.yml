@@ -14,11 +14,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          node-version: '20'
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+          node-version: '20'
 
       - name: Install dependencies
         run: |
@@ -31,11 +34,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          node-version: '20'
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+          node-version: '20'
 
       - name: Install dependencies
         run: |
@@ -53,11 +59,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: 'main'
 
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.x'
+          node-version: '20'
 
       - name: Install dependencies
         run: |
@@ -70,9 +79,10 @@ jobs:
           sed -i "s/version=.*,/version='${TAG_NAME}',/" setup.py
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git checkout -b temp-branch
           git add setup.py
           git commit -m "Update version to ${TAG_NAME} from tag ${GITHUB_REF}"
-          git push origin main
+          git push origin temp-branch:main
 
       - name: Publish to PyPI
         env:
