@@ -1,65 +1,78 @@
-from pathlib import Path
-from typing import Dict, Any, List, Set
-from .models.layer import Layer
-from .collectors.collector_factory import CollectorFactory
-from .rules.rule_factory import RuleFactory
-from .models.violation import Violation
+import ast
+from typing import Dict, Set, Tuple
+
 from .models.code_element import CodeElement
-from .utils.ast_utils import parse_file, get_import_aliases, get_class_dependencies
 
 
 class CodeAnalyzer:
-    def __init__(self, config: Dict[str, Any], project_root: Path):
-        self.config = config
-        self.project_root = project_root
-        self.layers = self._initialize_layers()
-        self.rules = self._initialize_rules()
-        self.code_elements: Dict[CodeElement, str] = {}
-        self.class_to_layer: Dict[str, str] = {}
-        self.class_dependencies: Dict[CodeElement, Set[str]] = {}
+    def __init__(self, code_elements: Set[CodeElement]):
+        self.code_elements = code_elements
+        self.dependencies = {}  # Dict[CodeElement, Set[Tuple[CodeElement, int]]]
 
-    def _initialize_layers(self) -> Dict[str, Layer]:
-        layers = {}
-        for layer_config in self.config.get("layers", []):
-            name = layer_config["name"]
-            collectors_config = layer_config.get("collectors", [])
-            collectors = [CollectorFactory.create(c, self.project_root) for c in collectors_config]
-            layers[name] = Layer(name=name, collectors=collectors)
-        return layers
+    def analyze(self):
+        name_to_element = self._build_name_to_element_map()
+        for code_element in self.code_elements:
+            dependencies = self._extract_dependencies(code_element, name_to_element)
+            self.dependencies[code_element] = dependencies
 
-    def _initialize_rules(self):
-        ruleset = self.config.get("ruleset", {})
-        rules = RuleFactory.create_rules(ruleset)
-        return rules
+    def _build_name_to_element_map(self) -> Dict[str, Set[CodeElement]]:
+        name_to_element = {}
+        for elem in self.code_elements:
+            name_to_element.setdefault(elem.name, set()).add(elem)
+        return name_to_element
 
-    def analyze(self) -> List[Violation]:
-        self._collect_code_elements()
-        self._collect_class_dependencies()
-        violations = []
-        for rule in self.rules:
-            violations.extend(rule.check(self.code_elements, self.class_dependencies, self.class_to_layer))
-        return violations
+    def _extract_dependencies(self, code_element: CodeElement, name_to_element: Dict[str, Set[CodeElement]]) -> Set[
+        Tuple[CodeElement, int]]:
+        dependencies = set()
+        with open(code_element.file, 'r', encoding='utf-8') as f:
+            try:
+                tree = ast.parse(f.read(), filename=str(code_element.file))
+            except SyntaxError:
+                return dependencies  # Skip files with syntax errors
 
-    def _collect_code_elements(self):
-        for layer in self.layers.values():
-            elements = layer.collect()
-            for element in elements:
-                self.code_elements[element] = layer.name
-                self.class_to_layer[element.class_name] = layer.name
+        class DependencyVisitor(ast.NodeVisitor):
+            def __init__(self, dependencies):
+                self.dependencies = dependencies
 
-                # print('-------------------------', flush=True)
-                # print(element, flush=True)
-                # print(element.class_name, flush=True)
-                # print(layer.name, flush=True)
-                # print('-------------------------', flush=True)
+            def visit_Import(self, node):
+                for alias in node.names:
+                    name = alias.asname or alias.name.split('.')[0]
+                    dep_elements = name_to_element.get(name, set())
+                    for dep_element in dep_elements:
+                        self.dependencies.add((dep_element, node.lineno))
 
+            def visit_ImportFrom(self, node):
+                module = node.module
+                for alias in node.names:
+                    name = alias.asname or alias.name
+                    full_name = f"{module}.{name}" if module else name
+                    dep_elements = name_to_element.get(name, set())
+                    for dep_element in dep_elements:
+                        self.dependencies.add((dep_element, node.lineno))
 
-    def _collect_class_dependencies(self):
-        for code_element in self.code_elements.keys():
-            tree = parse_file(code_element.file)
-            import_aliases = get_import_aliases(tree)
-            class_deps = get_class_dependencies(tree, import_aliases, code_element.file)
-            # Merge the dependencies for classes we have collected
-            for class_elem, deps in class_deps.items():
-                if class_elem in self.code_elements:
-                    self.class_dependencies[class_elem] = deps
+            def visit_Call(self, node):
+                if isinstance(node.func, ast.Name):
+                    name = node.func.id
+                    dep_elements = name_to_element.get(name, set())
+                    for dep_element in dep_elements:
+                        self.dependencies.add((dep_element, node.lineno))
+                self.generic_visit(node)
+
+            def visit_Attribute(self, node):
+                if isinstance(node.value, ast.Name):
+                    name = f"{node.value.id}.{node.attr}"
+                    dep_elements = name_to_element.get(name, set())
+                    for dep_element in dep_elements:
+                        self.dependencies.add((dep_element, node.lineno))
+                self.generic_visit(node)
+
+            def visit_Name(self, node):
+                if isinstance(node.ctx, ast.Load):
+                    name = node.id
+                    dep_elements = name_to_element.get(name, set())
+                    for dep_element in dep_elements:
+                        self.dependencies.add((dep_element, node.lineno))
+
+        visitor = DependencyVisitor(dependencies)
+        visitor.visit(tree)
+        return dependencies
