@@ -2,9 +2,10 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-@dataclass
+@dataclass(frozen=True)
 class Violation:
     file: Path
-    class_name: str
+    element_name: str
+    element_type: str  # 'class', 'function', or 'variable'
     line: int
     message: str

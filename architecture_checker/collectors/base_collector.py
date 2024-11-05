@@ -1,6 +1,8 @@
-from architecture_checker.models.code_element import CodeElement
+from abc import ABC, abstractmethod
+from ..models.code_element import CodeElement
 
 
-class BaseCollector:
+class BaseCollector(ABC):
+    @abstractmethod
     def collect(self) -> set[CodeElement]:
-        raise NotImplementedError
+        pass
