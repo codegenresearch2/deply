@@ -3,12 +3,29 @@ name: Python package
 on:
   push:
     branches: [ main ]
+    tags:
+      - 'v*'
   pull_request:
     branches: [ main ]
 
 jobs:
   build:
+    runs-on: ubuntu-latest
 
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -28,8 +45,24 @@ jobs:
         run: |
           python -m unittest discover tests
 
+  publish:
+    runs-on: ubuntu-latest
+    if: github.ref_type == 'tag'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
       - name: Publish to PyPI
-        if: github.ref == 'refs/heads/main' && steps.version.outputs.changed == 'true'
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_TOKEN }}
@@ -37,26 +70,3 @@ jobs:
           python -m pip install --upgrade twine
           python setup.py sdist bdist_wheel
           twine upload dist/*
-
-  version:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Get current version
-        id: version
-        run: |
-          git fetch --tags
-          latest_tag=$(git describe --tags --abbrev=0 || echo "")
-          current_version=$(python setup.py --version)
-          echo "latest_tag=$latest_tag" >> $GITHUB_ENV
-          echo "current_version=$current_version" >> $GITHUB_ENV
-
-      - name: Determine version change
-        id: check_version
-        run: |
-          if [ "$latest_tag" != "$current_version" ]; then
-            echo "::set-output name=changed::true"
-          else
-            echo "::set-output name=changed::false"
-          fi
