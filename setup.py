@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="architecture_checker",
-    version="0.1.0",  # Update version as needed
+    version="0.2.0",
     author="Your Name",
     author_email="armiworker@gmail.com",
     description="A tool to enforce architectural patterns in Django projects",
