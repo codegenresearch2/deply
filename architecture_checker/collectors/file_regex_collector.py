@@ -34,9 +34,9 @@ class FileRegexCollector(BaseCollector):
 
         if not self.element_type or self.element_type == 'class':
             elements.update(self.get_class_names(tree, file_path))
-        elif not self.element_type or self.element_type == 'function':
+        if not self.element_type or self.element_type == 'function':
             elements.update(self.get_function_names(tree, file_path))
-        elif not self.element_type or self.element_type == 'variable':
+        if not self.element_type or self.element_type == 'variable':
             elements.update(self.get_variable_names(tree, file_path))
         return elements
 
