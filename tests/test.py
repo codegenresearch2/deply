@@ -17,6 +17,10 @@ class TestArchCheck(unittest.TestCase):
         self.app_path = os.path.join(self.test_project_root, 'app')
         os.makedirs(self.app_path, exist_ok=True)
 
+        # create __init__.py in the test_project_root directory
+        with open(os.path.join(self.test_project_root, '__init__.py'), 'w') as f:
+            f.write("")
+
         # Create config.yaml for the test
         self.config_path = os.path.join(self.test_project_root, 'config.yaml')
         with open(self.config_path, 'w') as f:
@@ -24,8 +28,8 @@ class TestArchCheck(unittest.TestCase):
 layers:
   - name: models
     collectors:
-      - type: file_regex
-        regex: ".*/models.py"
+      - type: class_inherits
+        base_class: "BaseModel"
 
   - name: views
     collectors:
@@ -38,10 +42,18 @@ ruleset:
       - models
 """)
 
+        # create __init__.py in the app directory
+        with open(os.path.join(self.app_path, '__init__.py'), 'w') as f:
+            f.write("")
+
         # Create models.py with a class
         with open(os.path.join(self.app_path, 'models.py'), 'w') as f:
             f.write("""
-class MyModel:
+class BaseModel:
+    pass
+    
+    
+class MyModel(BaseModel):
     pass
 """)
 
