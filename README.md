@@ -1,7 +1,7 @@
 # Architecture Checker
 
 **Architecture Checker** is a standalone Python tool for enforcing architectural patterns and dependencies in large
-Django projects. By analyzing code structure and dependencies, this tool ensures that architectural rules are followed,
+python projects. By analyzing code structure and dependencies, this tool ensures that architectural rules are followed,
 promoting cleaner, more maintainable, and modular codebases.
 
 Inspired by https://github.com/qossmic/deptrac
@@ -11,7 +11,7 @@ Inspired by https://github.com/qossmic/deptrac
 - **Layer-Based Analysis**: Define project layers and restrict their dependencies to enforce modularity.
 - **Dynamic Layer Configuration**: Easily configure collectors for each layer using file patterns and class inheritance.
 - **Cross-Layer Dependency Rules** (TODO): Specify rules to disallow certain layers from accessing others.
-- **Extensible and Configurable**: Customize layers and rules for any Django project setup.
+- **Extensible and Configurable**: Customize layers and rules for any python project setup.
 
 ## Installation
 
@@ -62,7 +62,7 @@ python run_architecture_checker.py --project_root='/path/to/your_project' --conf
 
 ### Arguments
 
-- `--project_root`: The path to the root of the Django project where apps are located.
+- `--project_root`: The path to the root of the project where apps are located.
 - `--config`: Path to the configuration file that defines the rules and target files.
 
 ## Sample Output
