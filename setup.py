@@ -8,7 +8,7 @@ setup(
     version='0.2.8',
     author="Archil Abuladze",
     author_email="armiworker@gmail.com",
-    description="A tool to enforce architectural patterns in Django projects",
+    description="A tool to enforce architectural patterns in python projects",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/vashkatsi/architecture_checker",
