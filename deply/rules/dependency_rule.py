@@ -1,5 +1,3 @@
-# rules/dependency_rule.py
-
 from .base_rule import BaseRule
 from ..models.code_element import CodeElement
 from ..models.violation import Violation

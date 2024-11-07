@@ -1,3 +1,4 @@
+import re
 import ast
 from pathlib import Path
 from typing import Set
@@ -10,10 +11,16 @@ class ClassInheritsCollector(BaseCollector):
     def __init__(self, config: dict, project_root: Path):
         self.base_class = config.get("base_class", "")
         self.project_root = project_root
+        self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
     def collect(self) -> Set[CodeElement]:
         collected_elements = set()
         for file_path in self.project_root.rglob("*.py"):
+            relative_path = str(file_path.relative_to(self.project_root))
+            if self.exclude_regex and self.exclude_regex.match(relative_path):
+                continue
+
             tree = self.parse_file(file_path)
             classes = self.get_classes_inheriting(tree, file_path)
             collected_elements.update(classes)

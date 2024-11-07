@@ -9,8 +9,10 @@ from ..models.code_element import CodeElement
 class FileRegexCollector(BaseCollector):
     def __init__(self, config: dict, project_root: Path):
         self.regex_pattern = config.get("regex", "")
+        self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
         self.element_type = config.get("element_type", "")  # 'class', 'function', 'variable'
         self.regex = re.compile(self.regex_pattern)
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
         self.project_root = project_root
 
     def collect(self) -> Set[CodeElement]:
@@ -24,7 +26,10 @@ class FileRegexCollector(BaseCollector):
         return collected_elements
 
     def get_all_files(self):
-        return [f for f in self.project_root.rglob('*.py') if f.is_file()]
+        all_files = [f for f in self.project_root.rglob('*.py') if f.is_file()]
+        if self.exclude_regex:
+            all_files = [f for f in all_files if not self.exclude_regex.match(str(f.relative_to(self.project_root)))]
+        return all_files
 
     def get_elements_in_file(self, file_path: Path) -> Set[CodeElement]:
         elements = set()
@@ -34,10 +39,13 @@ class FileRegexCollector(BaseCollector):
 
         if not self.element_type or self.element_type == 'class':
             elements.update(self.get_class_names(tree, file_path))
+            
         if not self.element_type or self.element_type == 'function':
             elements.update(self.get_function_names(tree, file_path))
+            
         if not self.element_type or self.element_type == 'variable':
             elements.update(self.get_variable_names(tree, file_path))
+            
         return elements
 
     def parse_file(self, file_path: Path):

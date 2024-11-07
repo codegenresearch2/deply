@@ -1,28 +1,32 @@
 import ast
-from typing import Dict, Set, Tuple
 
 from .models.code_element import CodeElement
 
 
 class CodeAnalyzer:
-    def __init__(self, code_elements: Set[CodeElement]):
+    def __init__(self, code_elements: set[CodeElement]):
         self.code_elements = code_elements
-        self.dependencies = {}  # Dict[CodeElement, Set[Tuple[CodeElement, int]]]
+        self._dependencies: dict[CodeElement, set[tuple[CodeElement, int]]] = {}
 
     def analyze(self):
         name_to_element = self._build_name_to_element_map()
         for code_element in self.code_elements:
             dependencies = self._extract_dependencies(code_element, name_to_element)
-            self.dependencies[code_element] = dependencies
+            self._dependencies[code_element] = dependencies
 
-    def _build_name_to_element_map(self) -> Dict[str, Set[CodeElement]]:
+        return self._dependencies
+
+    def _build_name_to_element_map(self) -> dict[str, set[CodeElement]]:
         name_to_element = {}
         for elem in self.code_elements:
             name_to_element.setdefault(elem.name, set()).add(elem)
         return name_to_element
 
-    def _extract_dependencies(self, code_element: CodeElement, name_to_element: Dict[str, Set[CodeElement]]) -> Set[
-        Tuple[CodeElement, int]]:
+    def _extract_dependencies(
+            self,
+            code_element: CodeElement,
+            name_to_element: dict[str, set[CodeElement]]  # not sure if this is correct
+    ) -> set[tuple[CodeElement, int]]:
         dependencies = set()
         with open(code_element.file, 'r', encoding='utf-8') as f:
             try:
@@ -45,7 +49,6 @@ class CodeAnalyzer:
                 module = node.module
                 for alias in node.names:
                     name = alias.asname or alias.name
-                    full_name = f"{module}.{name}" if module else name
                     dep_elements = name_to_element.get(name, set())
                     for dep_element in dep_elements:
                         self.dependencies.add((dep_element, node.lineno))
