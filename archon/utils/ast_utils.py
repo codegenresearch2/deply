@@ -2,7 +2,7 @@ import ast
 from pathlib import Path
 from typing import Set, List, Dict, Tuple
 
-from architecture_checker.models.code_element import CodeElement
+from archon.models.code_element import CodeElement
 
 
 def parse_file(file_path: Path) -> ast.AST:
