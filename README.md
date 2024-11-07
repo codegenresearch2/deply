@@ -57,7 +57,7 @@ ruleset:
 Run the tool from the command line by specifying the project root directory and configuration file:
 
 ```bash
-python run_deply.py --project_root='/path/to/your_project' --config=config.example.yaml
+python deply.py --project_root='/path/to/your_project' --config=config.example.yaml
 ```
 
 ### Arguments
