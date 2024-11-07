@@ -37,8 +37,7 @@ def main():
 
     # Analyze code to find dependencies
     analyzer = CodeAnalyzer(code_elements)
-    analyzer.analyze()
-    code_element_dependencies = analyzer.dependencies
+    code_element_dependencies = analyzer.analyze()
 
     # Apply rules
     rule = DependencyRule(config['ruleset'])
