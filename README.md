@@ -18,7 +18,7 @@ Inspired by https://github.com/qossmic/deptrac
 To install **Architecture Checker**, use `pip`:
 
 ```bash
-pip install architecture_checker
+pip install archon
 ```
 
 ## Configuration
@@ -57,7 +57,7 @@ ruleset:
 Run the tool from the command line by specifying the project root directory and configuration file:
 
 ```bash
-python run_architecture_checker.py --project_root='/path/to/your_project' --config=config.example.yaml
+python run_archon.py --project_root='/path/to/your_project' --config=config.example.yaml
 ```
 
 ### Arguments

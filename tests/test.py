@@ -3,7 +3,7 @@
 import unittest
 import os
 import shutil
-from architecture_checker.main import main
+from archon.main import main
 from unittest.mock import patch
 from io import StringIO
 import sys

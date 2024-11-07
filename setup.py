@@ -4,16 +4,16 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="architecture_checker",
+    name="archon",
     version='0.2.9',
     author="Archil Abuladze",
     author_email="armiworker@gmail.com",
     description="A tool to enforce architectural patterns in python projects",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/vashkatsi/architecture_checker",
+    url="https://github.com/vashkatsi/archon",
     project_urls={
-        "Bug Tracker": "https://github.com/vashkatsi/architecture_checker/issues",
+        "Bug Tracker": "https://github.com/vashkatsi/archon/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -27,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'architecture_checker=architecture_checker.main:main',
+            'archon=archon.main:main',
         ],
     },
     include_package_data=True,
