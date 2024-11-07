@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="archon",
-    version='0.2.9',
+    version='0.1.0',
     author="Archil Abuladze",
     author_email="armiworker@gmail.com",
     description="A tool to enforce architectural patterns in python projects",
