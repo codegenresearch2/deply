@@ -9,7 +9,7 @@ from .reports.report_generator import ReportGenerator
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(prog="archon", description='Architecture Checker')
+    parser = argparse.ArgumentParser(prog="deply", description='Deply')
     parser.add_argument("--config", required=True, type=str, help="Path to the configuration YAML file")
     parser.add_argument("--project_root", required=True, type=str, help="Root directory of the project to analyze")
     parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",

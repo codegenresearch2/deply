@@ -1,5 +1,5 @@
 import sys
-from archon.main import main
+from deply.main import main
 
 if __name__ == "__main__":
     sys.exit(main())

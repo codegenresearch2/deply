@@ -4,16 +4,16 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="archon",
+    name="deply",
     version='0.1.0',
     author="Archil Abuladze",
     author_email="armiworker@gmail.com",
     description="A tool to enforce architectural patterns in python projects",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/vashkatsi/archon",
+    url="https://github.com/vashkatsi/deply",
     project_urls={
-        "Bug Tracker": "https://github.com/vashkatsi/archon/issues",
+        "Bug Tracker": "https://github.com/vashkatsi/deply/issues",
     },
     classifiers=[
         "Programming Language :: Python :: 3",
@@ -27,7 +27,7 @@ setup(
     ],
     entry_points={
         'console_scripts': [
-            'archon=archon.main:main',
+            'deply=deply.main:main',
         ],
     },
     include_package_data=True,

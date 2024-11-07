@@ -1,6 +1,6 @@
-# Architecture Checker
+# Deply
 
-**Architecture Checker** is a standalone Python tool for enforcing architectural patterns and dependencies in large
+**Deply** is a standalone Python tool for enforcing architectural patterns and dependencies in large
 python projects. By analyzing code structure and dependencies, this tool ensures that architectural rules are followed,
 promoting cleaner, more maintainable, and modular codebases.
 
@@ -15,10 +15,10 @@ Inspired by https://github.com/qossmic/deptrac
 
 ## Installation
 
-To install **Architecture Checker**, use `pip`:
+To install **Deply**, use `pip`:
 
 ```bash
-pip install archon
+pip install deply
 ```
 
 ## Configuration
@@ -57,7 +57,7 @@ ruleset:
 Run the tool from the command line by specifying the project root directory and configuration file:
 
 ```bash
-python run_archon.py --project_root='/path/to/your_project' --config=config.example.yaml
+python run_deply.py --project_root='/path/to/your_project' --config=config.example.yaml
 ```
 
 ### Arguments
