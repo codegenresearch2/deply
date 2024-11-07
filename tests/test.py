@@ -1,9 +1,7 @@
-# tests/test_archcheck.py
-
 import unittest
 import os
 import shutil
-from archon.main import main
+from deply.main import main
 from unittest.mock import patch
 from io import StringIO
 import sys
