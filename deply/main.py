@@ -1,10 +1,14 @@
 import argparse
 from pathlib import Path
-from .config_parser import ConfigParser
-from .collectors.collector_factory import CollectorFactory
+
 from .code_analyzer import CodeAnalyzer
-from .rules.dependency_rule import DependencyRule
+from .collectors.collector_factory import CollectorFactory
+from .config_parser import ConfigParser
+from .models.code_element import CodeElement
+from .models.dependency import Dependency
+from .models.layer import Layer
 from .reports.report_generator import ReportGenerator
+from .rules.dependency_rule import DependencyRule
 
 
 def main():
@@ -23,27 +27,46 @@ def main():
     # Parse configuration
     config = ConfigParser(config_path).parse()
 
-    # Collect code elements
-    code_elements = set()
-    code_element_to_layer = {}
-    for layer in config['layers']:
-        layer_name = layer['name']
-        for collector_config in layer['collectors']:
+    # Collect code elements and organize them by layers
+    layers: dict[str, Layer] = {}
+    code_element_to_layer: dict[CodeElement, str] = {}
+
+    for layer_config in config['layers']:
+        layer_name = layer_config['name']
+        collectors = layer_config.get('collectors', [])
+        collected_elements: set[CodeElement] = set()
+
+        for collector_config in collectors:
             collector = CollectorFactory.create(collector_config, project_root)
             collected = collector.collect()
-            code_elements.update(collected)
-            for element in collected:
-                code_element_to_layer[element] = layer_name
+            collected_elements.update(collected)
+
+        # Initialize Layer with collected code elements
+        layer = Layer(
+            name=layer_name,
+            code_elements=collected_elements,
+            dependencies=set()
+        )
+        layers[layer_name] = layer
+
+        # Map each code element to its layer
+        for element in collected_elements:
+            code_element_to_layer[element] = layer_name
 
     # Analyze code to find dependencies
-    analyzer = CodeAnalyzer(code_elements)
-    code_element_dependencies = analyzer.analyze()
+    analyzer = CodeAnalyzer(set(code_element_to_layer.keys()))
+    dependencies: set[Dependency] = analyzer.analyze()
+
+    # Assign dependencies to respective layers
+    for dependency in dependencies:
+        source_layer_name = code_element_to_layer.get(dependency.code_element)
+        if source_layer_name and source_layer_name in layers:
+            layers[source_layer_name].dependencies.add(dependency)
 
     # Apply rules
     rule = DependencyRule(config['ruleset'])
     violations = rule.check(
-        code_element_to_layer=code_element_to_layer,
-        code_element_dependencies=code_element_dependencies
+        layers=layers  # Assuming DependencyRule is updated to handle layers
     )
 
     # Generate report

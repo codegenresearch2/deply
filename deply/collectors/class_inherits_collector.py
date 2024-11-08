@@ -1,7 +1,7 @@
-import re
 import ast
+import re
 from pathlib import Path
-from typing import Set
+
 from .base_collector import BaseCollector
 from ..models.code_element import CodeElement
 from ..utils.ast_utils import get_import_aliases, get_base_name
@@ -14,14 +14,20 @@ class ClassInheritsCollector(BaseCollector):
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-    def collect(self) -> Set[CodeElement]:
+    def collect(self) -> set[CodeElement]:
+
         collected_elements = set()
+
         for file_path in self.project_root.rglob("*.py"):
+
             relative_path = str(file_path.relative_to(self.project_root))
+
             if self.exclude_regex and self.exclude_regex.match(relative_path):
                 continue
 
             tree = self.parse_file(file_path)
+            if tree is None:
+                continue
             classes = self.get_classes_inheriting(tree, file_path)
             collected_elements.update(classes)
 
@@ -45,7 +51,9 @@ class ClassInheritsCollector(BaseCollector):
                         code_element = CodeElement(
                             file=file_path,
                             name=node.name,
-                            element_type='class'
+                            element_type='class',
+                            line=node.lineno,
+                            column=node.col_offset
                         )
                         classes.add(code_element)
         return classes
