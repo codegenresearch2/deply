@@ -5,12 +5,6 @@ layers:
         base_class: "django.db.models.Model"
         exclude_files_regex: ".*\\.venv/.*"
 
-  - name: services
-    collectors:
-      - type: file_regex
-        regex: "^.*/providers.py$"
-        exclude_files_regex: ".*\\.venv/.*"
-
   - name: views
     collectors:
       - type: file_regex

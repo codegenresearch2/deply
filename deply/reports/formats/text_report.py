@@ -9,6 +9,7 @@ class TextReport:
         lines = []
         for violation in self.violations:
             lines.append(
-                f"{violation.file}:{violation.line} - {violation.message} ({violation.element_type} {violation.element_name}) "
+                f"{violation.file}:{violation.line}:{violation.column} - {violation.message}"
+                # + f" ({violation.element_type} '{violation.element_name}')"
             )
         return "\n".join(lines)

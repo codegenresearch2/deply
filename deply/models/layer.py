@@ -1,14 +1,11 @@
-from ..collectors.base_collector import BaseCollector
+from dataclasses import dataclass
+
+from .dependency import Dependency
 from ..models.code_element import CodeElement
 
 
+@dataclass()
 class Layer:
-    def __init__(self, name: str, collectors: list[BaseCollector]):
-        self.name = name
-        self.collectors = collectors
-
-    def collect(self) -> set[CodeElement]:
-        elements = set()
-        for collector in self.collectors:
-            elements.update(collector.collect())
-        return elements
+    name: str
+    code_elements: set[CodeElement]
+    dependencies: set[Dependency]
