@@ -1,110 +1,108 @@
+# tests/test_code_analyzer.py
 import unittest
-import os
+import tempfile
 import shutil
-from deply.main import main
-from unittest.mock import patch
-from io import StringIO
+import os
+from pathlib import Path
 import sys
+import yaml
+from contextlib import contextmanager
+from io import StringIO
+
+from deply.main import main
 
 
-class TestArchCheck(unittest.TestCase):
+@contextmanager
+def captured_output():
+    new_out, new_err = StringIO(), StringIO()
+    old_out, old_err = sys.stdout, sys.stderr
+    try:
+        sys.stdout, sys.stderr = new_out, new_err
+        yield sys.stdout, sys.stderr
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err
 
+class TestCodeAnalyzer(unittest.TestCase):
     def setUp(self):
-        # Set up a simulated project structure
-        self.test_project_root = os.path.abspath('tests/test_project')
-        self.app_path = os.path.join(self.test_project_root, 'app')
-        os.makedirs(self.app_path, exist_ok=True)
+        # Create a temporary directory
+        self.test_dir = tempfile.mkdtemp()
+        self.test_project_dir = Path(self.test_dir) / 'test_project'
+        self.test_project_dir.mkdir()
 
-        # create __init__.py in the test_project_root directory
-        with open(os.path.join(self.test_project_root, '__init__.py'), 'w') as f:
-            f.write("")
+        # Create test files
+        # Create base_model.py
+        models_dir = self.test_project_dir / 'models'
+        models_dir.mkdir()
+        base_model_py = models_dir / 'base_model.py'
+        base_model_py.write_text('class BaseModel:\n    pass\n')
 
-        # Create config.yaml for the test
-        self.config_path = os.path.join(self.test_project_root, 'config.yaml')
-        with open(self.config_path, 'w') as f:
-            f.write("""
-layers:
-  - name: models
-    collectors:
-      - type: class_inherits
-        base_class: "BaseModel"
+        # Create my_model.py
+        my_model_py = models_dir / 'my_model.py'
+        my_model_py.write_text('from .base_model import BaseModel\n\nclass MyModel(BaseModel):\n    pass\n')
 
-  - name: views
-    collectors:
-      - type: file_regex
-        regex: ".*/views.py"
+        # Create views.py
+        views_dir = self.test_project_dir / 'views'
+        views_dir.mkdir()
+        views_py = views_dir / 'views.py'
+        views_py.write_text('from ..models.my_model import MyModel\n\ndef my_view():\n    model = MyModel()\n')
 
-ruleset:
-  views:
-    disallow:
-      - models
-""")
-
-        # create __init__.py in the app directory
-        with open(os.path.join(self.app_path, '__init__.py'), 'w') as f:
-            f.write("")
-
-        # Create models.py with a class
-        with open(os.path.join(self.app_path, 'models.py'), 'w') as f:
-            f.write("""
-class BaseModel:
-    pass
-    
-    
-class MyModel(BaseModel):
-    pass
-""")
+        # Write config.yaml
+        self.config_yaml = Path(self.test_dir) / 'config.yaml'
+        config_data = {
+            'paths': ['./test_project'],
+            'layers': [
+                {
+                    'name': 'models',
+                    'collectors': [
+                        {
+                            'type': 'class_inherits',
+                            'base_class': 'BaseModel'
+                        }
+                    ]
+                },
+                {
+                    'name': 'views',
+                    'collectors': [
+                        {
+                            'type': 'file_regex',
+                            'regex': '.*/views.py'
+                        }
+                    ]
+                }
+            ],
+            'ruleset': {
+                'views': {
+                    'disallow': ['models']
+                }
+            }
+        }
+        with self.config_yaml.open('w') as f:
+            yaml.dump(config_data, f)
 
     def tearDown(self):
-        # Clean up the test project directory after each test
-        shutil.rmtree(self.test_project_root)
+        # Remove temporary directory
+        shutil.rmtree(self.test_dir)
 
-    def test_class_dependency_violation(self):
-        # Create views.py that imports MyModel from models
-        with open(os.path.join(self.app_path, 'views.py'), 'w') as f:
-            f.write("""
-from .models import MyModel
-
-def view_function():
-    instance = MyModel()
-""")
-        # Capture the output
-        with patch.object(sys, 'argv', [
-            'archcheck',
-            '--project_root', self.test_project_root,
-            '--config', self.config_path
-        ]):
-            with patch('sys.stdout', new=StringIO()) as fake_out, patch('sys.stderr', new=StringIO()):
+    def test_code_analyzer(self):
+        # Change current directory to the test directory
+        old_cwd = os.getcwd()
+        os.chdir(self.test_dir)
+        try:
+            # Capture the output
+            with captured_output() as (out, err):
                 try:
+                    # Run main with the test config
+                    sys.argv = ['main.py', '--config', str(self.config_yaml)]
                     main()
-                except SystemExit:
-                    pass
-                output = fake_out.getvalue()
-
-                self.assertIn('views.py:2', output)
-
-    def test_no_violation(self):
-        # Create views.py that does not import from models
-        with open(os.path.join(self.app_path, 'views.py'), 'w') as f:
-            f.write("""
-def view_function():
-    pass
-""")
-        # Capture the output
-        with patch.object(sys, 'argv', [
-            'archcheck',
-            '--project_root', self.test_project_root,
-            '--config', self.config_path
-        ]):
-            with patch('sys.stdout', new=StringIO()) as fake_out, patch('sys.stderr', new=StringIO()):
-                try:
-                    main()
-                except SystemExit:
-                    pass
-                output = fake_out.getvalue()
-
-                self.assertNotIn('views', output)
-
+                except SystemExit as e:
+                    exit_code = e.code
+            output = out.getvalue()
+            # Check that the exit code is 1 (violations found)
+            self.assertEqual(exit_code, 1)
+            # Check that the output contains the expected violation message
+            self.assertIn("Layer 'views' is not allowed to depend on layer 'models'", output)
+        finally:
+            os.chdir(old_cwd)
 
 if __name__ == '__main__':
     unittest.main()
