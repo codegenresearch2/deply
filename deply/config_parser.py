@@ -10,4 +10,10 @@ class ConfigParser:
     def parse(self) -> Dict[str, Any]:
         with self.config_path.open("r") as f:
             config = yaml.safe_load(f)
+
+        config.setdefault('paths', [])
+        config.setdefault('exclude_files', [])
+        config.setdefault('layers', [])
+        config.setdefault('ruleset', {})
+
         return config

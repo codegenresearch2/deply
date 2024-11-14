@@ -6,9 +6,9 @@ class TextReport:
         self.violations = violations
 
     def generate(self) -> str:
-        lines = []
+        lines = set()
         for violation in self.violations:
-            lines.append(
+            lines.add(
                 f"{violation.file}:{violation.line}:{violation.column} - {violation.message}"
                 # + f" ({violation.element_type} '{violation.element_name}')"
             )
