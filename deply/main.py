@@ -15,14 +15,12 @@ def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(prog="deply", description='Deply')
     parser.add_argument("--config", required=True, type=str, help="Path to the configuration YAML file")
-    parser.add_argument("--project_root", required=True, type=str, help="Root directory of the project to analyze")
     parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
                         help="Format of the output report")
     parser.add_argument("--output", type=str, help="Output file for the report")
     args = parser.parse_args()
 
     config_path = Path(args.config)
-    project_root = Path(args.project_root)
 
     # Parse configuration
     config = ConfigParser(config_path).parse()
@@ -37,7 +35,7 @@ def main():
         collected_elements: set[CodeElement] = set()
 
         for collector_config in collectors:
-            collector = CollectorFactory.create(collector_config, project_root)
+            collector = CollectorFactory.create(collector_config, config['paths'], config['exclude_files'])
             collected = collector.collect()
             collected_elements.update(collected)
 
