@@ -29,6 +29,12 @@ files to enforce.
 ### Example Configuration (`config.example.yaml`)
 
 ```yaml
+paths:
+  - /path/to/your/project
+
+exclude_files:
+  - ".*\\.venv/.*"
+
 layers:
   - name: models
     collectors:
@@ -57,12 +63,11 @@ ruleset:
 Run the tool from the command line by specifying the project root directory and configuration file:
 
 ```bash
-python deply.py --project_root='/path/to/your_project' --config=config.example.yaml
+python deply.py --config=config.example.yaml
 ```
 
 ### Arguments
 
-- `--project_root`: The path to the root of the project where apps are located.
 - `--config`: Path to the configuration file that defines the rules and target files.
 
 ## Sample Output
