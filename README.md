@@ -41,15 +41,22 @@ layers:
       - type: class_inherits
         base_class: "django.db.models.Model"
 
-  - name: services
-    collectors:
-      - type: file_regex
-        regex: "^.*/providers.py$"
-
   - name: views
     collectors:
       - type: file_regex
         regex: ".*/views_api.py"
+
+  - name: app1
+    collectors:
+      - type: directory
+        directories:
+          - "app1"
+
+  - name: services
+    collectors:
+      - type: class_name_regex
+        class_name_regex: ".*Service$"
+        exclude_files_regex: ".*excluded_folder_name.*"
 
 ruleset:
   views:
