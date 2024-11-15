@@ -46,11 +46,12 @@ layers:
       - type: file_regex
         regex: ".*/views_api.py"
 
-  - name: app1
+  - name: utils
     collectors:
       - type: directory
         directories:
-          - "app1"
+          - "utils1" # base_path/utils1
+          - "utils2" # base_path/utils2
 
   - name: services
     collectors:
@@ -62,6 +63,7 @@ ruleset:
   views:
     disallow:
       - models  # Disallows direct access to models in views
+      - utils
 
 ```
 
