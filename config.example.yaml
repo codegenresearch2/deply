@@ -27,6 +27,11 @@ layers:
         class_name_regex: ".*Service$"
         exclude_files_regex: ".*excluded_folder_name.*"
 
+  - name: auth_protected
+    collectors:
+      - type: decorator_usage
+        decorator_name: "login_required"
+
 ruleset:
   views:
     disallow:
