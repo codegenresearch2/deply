@@ -1,6 +1,8 @@
 # Deply
 
-**Deply** is a standalone Python tool for enforcing architectural patterns and dependencies in large Python projects. By analyzing code structure and dependencies, this tool ensures that architectural rules are followed, promoting cleaner, more maintainable, and modular codebases.
+**Deply** is a standalone Python tool for enforcing architectural patterns and dependencies in large Python projects. By
+analyzing code structure and dependencies, this tool ensures that architectural rules are followed, promoting cleaner,
+more maintainable, and modular codebases.
 
 Inspired by [Deptrac](https://github.com/qossmic/deptrac).
 
@@ -21,7 +23,8 @@ pip install deply
 
 ## Configuration
 
-Before running the tool, create a configuration file (`config.yaml` or similar) that specifies the rules and target files to enforce.
+Before running the tool, create a configuration file (`config.yaml` or similar) that specifies the rules and target
+files to enforce.
 
 ### Collectors
 
@@ -183,7 +186,8 @@ python deply.py --config=config.example.yaml
 
 ## Sample Output
 
-If violations are found, the tool will output a summary of architectural violations grouped by app, along with details of each violation, such as the file, line number, and violation message.
+If violations are found, the tool will output a summary of architectural violations grouped by app, along with details
+of each violation, such as the file, line number, and violation message.
 
 ```plaintext
 /path/to/your_project/your_project/app1/views_api.py:74 - Layer 'views' is not allowed to depend on layer 'models'
@@ -196,6 +200,56 @@ To test the tool, use `unittest`:
 ```bash
 python -m unittest discover tests
 ```
+
+## Roadmap
+
+Deply is in its early stages, and I’m actively working on expanding its features and usability. Here are some key
+priorities based on feedback from the community:
+
+### Planned Features
+
+- **Improved Configuration Options**:
+    - Support for alternative configuration format like TOML (e.g., `pyproject.toml`).
+    - Consider embedding configurations directly into code (e.g., via decorators) for smaller projects.
+
+- **Baseline Configurations**:
+    - Provide ready-to-use examples for common frameworks, such as Django (MVC pattern), Flask, and generic Python
+      projects.
+
+- **CI/CD Integration**:
+    - Simplify integration into CI pipelines to automatically enforce architectural rules on pull requests.
+    - Add features for generating clear and actionable violation reports in CI logs.
+
+- **Pytest Plugin**:
+    - Develop a Pytest plugin to integrate Deply’s functionality into test runs, providing immediate feedback during
+      development.
+
+- **Visualization**:
+    - Create tools to generate graphical representations of architecture layers and dependency graphs.
+    - Highlight violations visually to make them easier to understand and fix.
+
+- **New Collectors**:
+    - Expand the types of collectors, including:
+        - Type annotation collectors (e.g., enforce rules based on type hints).
+        - Dynamic import collectors to analyze runtime imports.
+        - Enhanced support for tracking decorator-based dependencies.
+
+- **Better Documentation**:
+    - Add beginner-friendly guides to help new developers set up and use Deply effectively.
+    - Provide more real-world examples and explain architectural concepts in a straightforward way.
+
+### Long-Term Goals
+
+- **Plugin Ecosystem**:
+    - Provide an API for custom collectors and rules so users can extend Deply for their specific use cases.
+
+- **Performance Optimization**:
+    - Optimize performance for large codebases to ensure fast analysis even with complex configurations.
+
+---
+
+Feel free to contribute to this roadmap or suggest features by opening an issue or submitting a pull request! Together,
+we can make Deply a powerful tool for the Python community. 😊
 
 ## License
 
