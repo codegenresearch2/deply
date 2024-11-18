@@ -1,5 +1,6 @@
 from typing import Dict, Any
 
+from . import DecoratorUsageCollector
 from .base_collector import BaseCollector
 from .class_inherits_collector import ClassInheritsCollector
 from .class_name_regex_collector import ClassNameRegexCollector
@@ -19,5 +20,7 @@ class CollectorFactory:
             return ClassNameRegexCollector(config, paths, exclude_files)
         elif collector_type == "directory":
             return DirectoryCollector(config, paths, exclude_files)
+        elif collector_type == "decorator_usage":
+            return DecoratorUsageCollector(config, paths, exclude_files)
         else:
             raise ValueError(f"Unknown collector type: {collector_type}")
