@@ -1,38 +1,49 @@
-paths:
-  - /path/to/your/project
+deply:
+  paths:
+    - /path/to/your/project
 
-exclude_files:
-  - ".*\\.venv/.*"
+  exclude_files:
+    - ".*\\.venv/.*"
 
-layers:
-  - name: models
-    collectors:
-      - type: class_inherits
-        base_class: "django.db.models.Model"
+  layers:
+    - name: models
+      collectors:
+        - type: bool
+          any_of:
+            - type: class_inherits
+              base_class: "django.db.models.Model"
+            - type: class_inherits
+              base_class: "django.contrib.auth.models.AbstractUser"
 
-  - name: views
-    collectors:
-      - type: file_regex
-        regex: ".*/views_api.py"
+    - name: views
+      collectors:
+        - type: file_regex
+          regex: ".*/views_api.py"
 
-  - name: app1
-    collectors:
-      - type: directory
-        directories:
-          - "app1"
+    - name: app1
+      collectors:
+        - type: directory
+          directories:
+            - "app1"
 
-  - name: services
-    collectors:
-      - type: class_name_regex
-        class_name_regex: ".*Service$"
-        exclude_files_regex: ".*excluded_folder_name.*"
+    - name: services
+      collectors:
+        - type: bool
+          must:
+            - type: class_name_regex
+              class_name_regex: ".*Service$"
+          must_not:
+            - type: file_regex
+              regex: ".*/excluded_folder_name/.*"
+            - type: decorator_usage
+              decorator_name: "deprecated_service"
 
-  - name: auth_protected
-    collectors:
-      - type: decorator_usage
-        decorator_name: "login_required"
+    - name: auth_protected
+      collectors:
+        - type: decorator_usage
+          decorator_name: "login_required"
 
-ruleset:
-  views:
-    disallow:
-      - models
+  ruleset:
+    views:
+      disallow:
+        - models

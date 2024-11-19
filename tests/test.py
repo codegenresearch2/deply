@@ -22,6 +22,7 @@ def captured_output():
     finally:
         sys.stdout, sys.stderr = old_out, old_err
 
+
 class TestCodeAnalyzer(unittest.TestCase):
     def setUp(self):
         # Create a temporary directory
@@ -49,30 +50,32 @@ class TestCodeAnalyzer(unittest.TestCase):
         # Write config.yaml
         self.config_yaml = Path(self.test_dir) / 'config.yaml'
         config_data = {
-            'paths': ['./test_project'],
-            'layers': [
-                {
-                    'name': 'models',
-                    'collectors': [
-                        {
-                            'type': 'class_inherits',
-                            'base_class': 'BaseModel'
-                        }
-                    ]
-                },
-                {
-                    'name': 'views',
-                    'collectors': [
-                        {
-                            'type': 'file_regex',
-                            'regex': '.*/views.py'
-                        }
-                    ]
-                }
-            ],
-            'ruleset': {
-                'views': {
-                    'disallow': ['models']
+            'deply': {
+                'paths': ['./test_project'],
+                'layers': [
+                    {
+                        'name': 'models',
+                        'collectors': [
+                            {
+                                'type': 'class_inherits',
+                                'base_class': 'BaseModel'
+                            }
+                        ]
+                    },
+                    {
+                        'name': 'views',
+                        'collectors': [
+                            {
+                                'type': 'file_regex',
+                                'regex': '.*/views.py'
+                            }
+                        ]
+                    }
+                ],
+                'ruleset': {
+                    'views': {
+                        'disallow': ['models']
+                    }
                 }
             }
         }
@@ -103,6 +106,7 @@ class TestCodeAnalyzer(unittest.TestCase):
             self.assertIn("Layer 'views' is not allowed to depend on layer 'models'", output)
         finally:
             os.chdir(old_cwd)
+
 
 if __name__ == '__main__':
     unittest.main()

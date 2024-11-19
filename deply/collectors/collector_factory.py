@@ -22,5 +22,8 @@ class CollectorFactory:
             return DirectoryCollector(config, paths, exclude_files)
         elif collector_type == "decorator_usage":
             return DecoratorUsageCollector(config, paths, exclude_files)
+        elif collector_type == "bool":
+            from .bool_collector import BoolCollector
+            return BoolCollector(config, paths, exclude_files)
         else:
             raise ValueError(f"Unknown collector type: {collector_type}")

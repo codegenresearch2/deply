@@ -7,6 +7,7 @@ from pathlib import Path
 import yaml
 
 from deply.collectors import FileRegexCollector, ClassInheritsCollector
+from deply.collectors.bool_collector import BoolCollector
 from deply.collectors.class_name_regex_collector import ClassNameRegexCollector
 from deply.collectors.decorator_usage_collector import DecoratorUsageCollector
 from deply.collectors.directory_collector import DirectoryCollector
@@ -24,6 +25,7 @@ class TestCollectors(unittest.TestCase):
         (self.test_project_dir / 'controllers').mkdir()
         (self.test_project_dir / 'models').mkdir()
         (self.test_project_dir / 'services').mkdir()
+        (self.test_project_dir / 'excluded_folder_name').mkdir()
         (self.test_project_dir / 'utilities').mkdir()
 
         # Create files in controllers
@@ -46,6 +48,9 @@ class TestCollectors(unittest.TestCase):
 
         user_service_py = self.test_project_dir / 'services' / 'user_service.py'
         user_service_py.write_text('@service_decorator\nclass UserService(BaseService):\n    pass\n')
+
+        deprecated_service_py = self.test_project_dir / 'excluded_folder_name' / 'deprecated_service.py'
+        deprecated_service_py.write_text('@deprecated_service\nclass DeprecatedService(BaseService):\n    pass\n')
 
         # Create utility functions
         utils_py = self.test_project_dir / 'utilities' / 'utils.py'
@@ -135,6 +140,26 @@ class TestCollectors(unittest.TestCase):
         collected_elements = collector.collect()
         self.assertEqual(len(collected_elements), 0)
 
+    def test_bool_collector(self):
+        collector_config = {
+            'type': 'bool',
+            'must': [
+                {'type': 'class_name_regex', 'class_name_regex': '.*Service$'}
+            ],
+            'must_not': [
+                {'type': 'file_regex', 'regex': '.*/base_service.py'},
+                {'type': 'file_regex', 'regex': '.*/excluded_folder_name/.*'},
+                {'type': 'decorator_usage', 'decorator_name': 'deprecated_service'}
+            ]
+        }
+        paths = [str(self.test_project_dir)]
+        exclude_files = []
+        collector = BoolCollector(collector_config, paths, exclude_files)
+        collected_elements = collector.collect()
+        collected_class_names = {element.name for element in collected_elements}
+        expected_classes = {'UserService'}
+        self.assertEqual(collected_class_names, expected_classes)
+
     def test_directory_collector_with_rules(self):
         user_controller_py = self.test_project_dir / 'controllers' / 'user_controller.py'
         user_controller_py.write_text(
@@ -145,30 +170,32 @@ class TestCollectors(unittest.TestCase):
         )
         config_yaml = Path(self.test_dir) / 'config_directory_collector_rules.yaml'
         config_data = {
-            'paths': [str(self.test_project_dir)],
-            'layers': [
-                {
-                    'name': 'models_layer',
-                    'collectors': [
-                        {
-                            'type': 'directory',
-                            'directories': ['models'],
-                        }
-                    ]
-                },
-                {
-                    'name': 'controllers_layer',
-                    'collectors': [
-                        {
-                            'type': 'directory',
-                            'directories': ['controllers'],
-                        }
-                    ]
-                }
-            ],
-            'ruleset': {
-                'controllers_layer': {
-                    'disallow': ['models_layer']
+            'deply': {
+                'paths': [str(self.test_project_dir)],
+                'layers': [
+                    {
+                        'name': 'models_layer',
+                        'collectors': [
+                            {
+                                'type': 'directory',
+                                'directories': ['models'],
+                            }
+                        ]
+                    },
+                    {
+                        'name': 'controllers_layer',
+                        'collectors': [
+                            {
+                                'type': 'directory',
+                                'directories': ['controllers'],
+                            }
+                        ]
+                    }
+                ],
+                'ruleset': {
+                    'controllers_layer': {
+                        'disallow': ['models_layer']
+                    }
                 }
             }
         }

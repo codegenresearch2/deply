@@ -11,6 +11,7 @@ class ConfigParser:
         with self.config_path.open("r") as f:
             config = yaml.safe_load(f)
 
+        config = config['deply']
         config.setdefault('paths', [])
         config.setdefault('exclude_files', [])
         config.setdefault('layers', [])
