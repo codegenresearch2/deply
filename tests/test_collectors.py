@@ -203,7 +203,7 @@ class TestCollectors(unittest.TestCase):
             yaml.dump(config_data, f)
         with self.capture_output() as (out, err):
             try:
-                sys.argv = ['main.py', '--config', str(config_yaml)]
+                sys.argv = ['main.py', 'analyze', '--config', str(config_yaml)]
                 main()
             except SystemExit as e:
                 exit_code = e.code

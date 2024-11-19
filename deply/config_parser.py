@@ -11,10 +11,13 @@ class ConfigParser:
         with self.config_path.open("r") as f:
             config = yaml.safe_load(f)
 
-        config = config['deply']
+        config = config.get('deply', config)
         config.setdefault('paths', [])
         config.setdefault('exclude_files', [])
         config.setdefault('layers', [])
         config.setdefault('ruleset', {})
+
+        if not config['paths']:
+            config['paths'] = [str(self.config_path.parent)]
 
         return config

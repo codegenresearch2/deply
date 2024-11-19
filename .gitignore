@@ -22,3 +22,5 @@ env/
 
 # MacOS
 .DS_Store
+
+deply.yaml

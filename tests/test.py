@@ -95,7 +95,7 @@ class TestCodeAnalyzer(unittest.TestCase):
             with captured_output() as (out, err):
                 try:
                     # Run main with the test config
-                    sys.argv = ['main.py', '--config', str(self.config_yaml)]
+                    sys.argv = ['main.py', 'analyze', '--config', str(self.config_yaml)]
                     main()
                 except SystemExit as e:
                     exit_code = e.code
