@@ -65,7 +65,7 @@ deply:
             - type: class_name_regex
               class_name_regex: ".*Service$"
           must_not:
-            - type: file_path_regex
+            - type: file_regex
               regex: ".*/excluded_folder_name/.*"
             - type: decorator_usage
               decorator_name: "deprecated_service"
