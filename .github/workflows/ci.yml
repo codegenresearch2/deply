@@ -80,7 +80,7 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b temp-branch
-          git add setup.py
+          git add deply/__init__.py
           git commit -m "Update version to ${TAG_NAME} from tag ${GITHUB_REF}"
           git push origin temp-branch:main
 
