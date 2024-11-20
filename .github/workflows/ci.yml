@@ -76,7 +76,7 @@ jobs:
       - name: Update version in setup.py
         run: |
           TAG_NAME="${GITHUB_REF#refs/tags/v}"
-          sed -i "s/version=.*,/version='${TAG_NAME}',/" setup.py
+          sed -i "s/__version__ = .*/__version__ = '${TAG_NAME}'/" deply/__init__.py
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git checkout -b temp-branch

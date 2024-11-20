@@ -1,3 +1,4 @@
+from deply import __version__
 from setuptools import setup, find_packages
 
 with open("README.md", "r", encoding="utf-8") as fh:
@@ -5,7 +6,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="deply",
-    version='0.2.0',
+    version=__version__,
     author="Archil Abuladze",
     author_email="armiworker@gmail.com",
     description="A tool to enforce architectural patterns in python projects",

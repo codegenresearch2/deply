@@ -2,6 +2,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from deply import __version__
 from .code_analyzer import CodeAnalyzer
 from .collectors.collector_factory import CollectorFactory
 from .config_parser import ConfigParser
@@ -14,18 +15,23 @@ from .rules.dependency_rule import DependencyRule
 
 def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
+    parser.add_argument('-V', '--version', action='store_true', help='Show the version number and exit')
+
     subparsers = parser.add_subparsers(dest='command', help='Sub-commands')
     parser_analyse = subparsers.add_parser('analyze', help='Analyze the project dependencies')
-    parser_analyse.add_argument("--config", type=str, default="deply.yaml", help="Path to the configuration YAML file")
-    parser_analyse.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
+    parser_analyse.add_argument('--config', type=str, default="deply.yaml", help="Path to the configuration YAML file")
+    parser_analyse.add_argument('--report-format', type=str, choices=["text", "json", "html"], default="text",
                                 help="Format of the output report")
-    parser_analyse.add_argument("--output", type=str, help="Output file for the report")
+    parser_analyse.add_argument('--output', type=str, help="Output file for the report")
     args = parser.parse_args()
-    if not args.command:
-        args = parser.parse_args(['analyze'] + sys.argv[1:])
-    config_path = Path(args.config)
+
+    if args.version:
+        version = __version__
+        print(f"deply {version}")
+        sys.exit(0)
 
     # Parse configuration
+    config_path = Path(args.config)
     config = ConfigParser(config_path).parse()
 
     # Collect code elements and organize them by layers
