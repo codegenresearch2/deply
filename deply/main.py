@@ -17,7 +17,7 @@ from .rules.dependency_rule import DependencyRule
 def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
     parser.add_argument('-V', '--version', action='store_true', help='Show the version number and exit')
-    parser.add_argument('-v', '--verbose', action='count', default=1, help='Increase output verbosity')
+    parser.add_argument('-v', '--verbose', action='count', default=2, help='Increase output verbosity')
 
     subparsers = parser.add_subparsers(dest='command', help='Sub-commands')
     parser_analyze = subparsers.add_parser('analyze', help='Analyze the project dependencies')
@@ -122,7 +122,7 @@ def main():
 
     # Exit with appropriate status
     if violations:
-        print(f"\n\nTotal violation(s): {len(violations)}")
+        print(f"\nTotal violation(s): {len(violations)}\n")
         exit(1)
     else:
         logging.info("No violations detected.")
