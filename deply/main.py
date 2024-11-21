@@ -99,7 +99,6 @@ def main():
         source_layer_name = code_element_to_layer.get(dependency.code_element)
         if source_layer_name and source_layer_name in layers:
             layers[source_layer_name].dependencies.add(dependency)
-            logging.debug(f"Assigned dependency from {dependency.code_element.name} to layer '{source_layer_name}'")
 
     # Apply rules
     logging.info("Applying dependency rules...")
@@ -118,10 +117,12 @@ def main():
         output_path.write_text(report)
         logging.info(f"Report written to {output_path}")
     else:
+        print("\n")
         print(report)
 
     # Exit with appropriate status
     if violations:
+        print(f"\n\nTotal violation(s): {len(violations)}")
         exit(1)
     else:
         logging.info("No violations detected.")
