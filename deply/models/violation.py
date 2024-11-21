@@ -10,3 +10,12 @@ class Violation:
     line: int
     column: int
     message: str
+
+    def __hash__(self):
+        return hash((self.file, self.line, self.column, self.message))
+
+    def __eq__(self, other):
+        return (
+                (self.file, self.line, self.column, self.message)
+                == (other.file, other.line, other.column, other.message)
+        )

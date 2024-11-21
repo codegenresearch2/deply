@@ -1,5 +1,5 @@
 # rules/dependency_rule.py
-from typing import Dict, List
+from typing import Dict, List, Set
 
 from deply.models.code_element import CodeElement
 from deply.models.layer import Layer
@@ -12,7 +12,7 @@ class DependencyRule(BaseRule):
         self.ruleset = ruleset
 
     def check(self, layers: Dict[str, Layer]) -> List[Violation]:
-        violations: List[Violation] = []
+        violations: Set[Violation] = set()
 
         # Build a mapping from CodeElement to Layer name for quick lookup
         code_element_to_layer: Dict[CodeElement, str] = {}
@@ -51,7 +51,7 @@ class DependencyRule(BaseRule):
                         column=dependency.column,
                         message=message,
                     )
-                    violations.append(violation)
+                    violations.add(violation)
 
                 # Check against allowed layers if "allow" is specified
                 if allowed_layers and target_layer not in allowed_layers:
@@ -67,6 +67,6 @@ class DependencyRule(BaseRule):
                         column=dependency.column,
                         message=message,
                     )
-                    violations.append(violation)
+                    violations.add(violation)
 
-        return violations
+        return list(violations)
