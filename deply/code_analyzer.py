@@ -1,14 +1,20 @@
 import ast
 import logging
-from typing import Dict, Set, List
+from typing import Dict, Set, List, Callable
 
 from deply.models.code_element import CodeElement
 from deply.models.dependency import Dependency
 
 
 class CodeAnalyzer:
-    def __init__(self, code_elements: Set[CodeElement], dependency_types: List[str] = None):
+    def __init__(
+            self,
+            code_elements: Set[CodeElement],
+            dependency_handler: Callable[[Dependency], None],
+            dependency_types: List[str] = None
+    ):
         self.code_elements = code_elements
+        self.dependency_handler = dependency_handler
         self.dependency_types = dependency_types or [
             'import',
             'import_from',
@@ -21,20 +27,16 @@ class CodeAnalyzer:
             'attribute_access',
             'name_load',
         ]
-        self._dependencies: Set[Dependency] = set()
         logging.debug(f"Initialized CodeAnalyzer with {len(self.code_elements)} code elements.")
 
-    def analyze(self) -> Set[Dependency]:
+    def analyze(self) -> None:
         logging.debug("Starting analysis of code elements.")
         name_to_elements = self._build_name_to_element_map()
         logging.debug(f"Name to elements map built with {len(name_to_elements)} names.")
         for code_element in self.code_elements:
             logging.debug(f"Analyzing code element: {code_element.name} in file {code_element.file}")
-            dependencies = self._extract_dependencies(code_element, name_to_elements)
-            logging.debug(f"Found {len(dependencies)} dependencies for {code_element.name}")
-            self._dependencies.update(dependencies)
+            self._extract_dependencies(code_element, name_to_elements)
         logging.debug("Completed analysis of code elements.")
-        return self._dependencies
 
     def _build_name_to_element_map(self) -> Dict[str, Set[CodeElement]]:
         logging.debug("Building name to element map.")
@@ -48,9 +50,8 @@ class CodeAnalyzer:
             self,
             code_element: CodeElement,
             name_to_element: Dict[str, Set[CodeElement]]
-    ) -> Set[Dependency]:
+    ) -> None:
         logging.debug(f"Extracting dependencies for {code_element.name} in file {code_element.file}")
-        dependencies = set()
         try:
             with open(code_element.file, 'r', encoding='utf-8') as f:
                 source_code = f.read()
@@ -59,13 +60,18 @@ class CodeAnalyzer:
             logging.debug(f"AST parsing completed for {code_element.file}.")
         except (SyntaxError, FileNotFoundError, UnicodeDecodeError) as e:
             logging.warning(f"Failed to parse {code_element.file}: {e}")
-            return dependencies  # Skip files with syntax errors or access issues
+            return  # Skip files with syntax errors or access issues
 
         class DependencyVisitor(ast.NodeVisitor):
-            def __init__(self, dependencies: Set[Dependency], source: CodeElement, dependency_types: List[str]):
-                self.dependencies = dependencies
+            def __init__(
+                    self,
+                    source: CodeElement,
+                    dependency_types: List[str],
+                    dependency_handler: Callable[[Dependency], None]
+            ):
                 self.source = source
                 self.dependency_types = dependency_types
+                self.dependency_handler = dependency_handler
                 logging.debug(f"DependencyVisitor created for {self.source.name}")
 
             def _get_full_name(self, node):
@@ -102,7 +108,7 @@ class CodeAnalyzer:
                                 line=node.lineno,
                                 column=node.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                 self.generic_visit(node)
 
             def visit_ImportFrom(self, node):
@@ -120,7 +126,7 @@ class CodeAnalyzer:
                                 line=node.lineno,
                                 column=node.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                 self.generic_visit(node)
 
             def visit_Call(self, node):
@@ -137,7 +143,7 @@ class CodeAnalyzer:
                                 line=node.lineno,
                                 column=node.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                     elif isinstance(node.func, ast.Attribute):
                         full_name = self._get_full_name(node.func)
                         dep_elements = name_to_element.get(full_name, set())
@@ -149,7 +155,7 @@ class CodeAnalyzer:
                                 line=node.lineno,
                                 column=node.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                 self.generic_visit(node)
 
             def visit_ClassDef(self, node):
@@ -166,7 +172,7 @@ class CodeAnalyzer:
                                 line=base.lineno,
                                 column=base.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                 if 'decorator' in self.dependency_types:
                     self._process_decorators(node)
                 if 'metaclass' in self.dependency_types:
@@ -182,7 +188,7 @@ class CodeAnalyzer:
                                     line=keyword.value.lineno,
                                     column=keyword.value.col_offset
                                 )
-                                self.dependencies.add(dependency)
+                                self.dependency_handler(dependency)
                 self.generic_visit(node)
 
             def _process_decorators(self, node):
@@ -198,7 +204,7 @@ class CodeAnalyzer:
                             line=decorator.lineno,
                             column=decorator.col_offset
                         )
-                        self.dependencies.add(dependency)
+                        self.dependency_handler(dependency)
 
             def visit_FunctionDef(self, node):
                 logging.debug(f"Visiting FunctionDef node: {node.name} at line {node.lineno}")
@@ -226,7 +232,7 @@ class CodeAnalyzer:
                         line=getattr(annotation, 'lineno', 0),
                         column=getattr(annotation, 'col_offset', 0)
                     )
-                    self.dependencies.add(dependency)
+                    self.dependency_handler(dependency)
 
             def visit_ExceptHandler(self, node):
                 logging.debug(f"Visiting ExceptHandler node at line {node.lineno}")
@@ -242,7 +248,7 @@ class CodeAnalyzer:
                                 line=node.lineno,
                                 column=node.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                 self.generic_visit(node)
 
             def visit_With(self, node):
@@ -260,7 +266,7 @@ class CodeAnalyzer:
                                 line=context_expr.lineno,
                                 column=context_expr.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                 self.generic_visit(node)
 
             def visit_Attribute(self, node):
@@ -276,7 +282,7 @@ class CodeAnalyzer:
                             line=node.lineno,
                             column=node.col_offset
                         )
-                        self.dependencies.add(dependency)
+                        self.dependency_handler(dependency)
                 self.generic_visit(node)
 
             def visit_Name(self, node):
@@ -293,11 +299,14 @@ class CodeAnalyzer:
                                 line=node.lineno,
                                 column=node.col_offset
                             )
-                            self.dependencies.add(dependency)
+                            self.dependency_handler(dependency)
                 self.generic_visit(node)
 
-        visitor = DependencyVisitor(dependencies, code_element, self.dependency_types)
+        visitor = DependencyVisitor(
+            source=code_element,
+            dependency_types=self.dependency_types,
+            dependency_handler=self.dependency_handler
+        )
         logging.debug(f"Starting AST traversal for {code_element.name}")
         visitor.visit(tree)
         logging.debug(f"Completed AST traversal for {code_element.name}")
-        return dependencies

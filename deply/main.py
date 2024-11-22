@@ -1,23 +1,23 @@
 import argparse
-import sys
 import logging
+import sys
 from pathlib import Path
 
 from deply import __version__
+from deply.rules import RuleFactory
 from .code_analyzer import CodeAnalyzer
 from .collectors.collector_factory import CollectorFactory
 from .config_parser import ConfigParser
 from .models.code_element import CodeElement
-from .models.dependency import Dependency
 from .models.layer import Layer
+from .models.violation import Violation
 from .reports.report_generator import ReportGenerator
-from .rules.dependency_rule import DependencyRule
 
 
 def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
     parser.add_argument('-V', '--version', action='store_true', help='Show the version number and exit')
-    parser.add_argument('-v', '--verbose', action='count', default=2, help='Increase output verbosity')
+    parser.add_argument('-v', '--verbose', action='count', default=1, help='Increase output verbosity')
 
     subparsers = parser.add_subparsers(dest='command', help='Sub-commands')
     parser_analyze = subparsers.add_parser('analyze', help='Analyze the project dependencies')
@@ -78,7 +78,7 @@ def main():
         layer = Layer(
             name=layer_name,
             code_elements=collected_elements,
-            dependencies=set()
+            dependencies=set()  # No longer needed but kept for potential future use
         )
         layers[layer_name] = layer
         logging.info(f"Layer '{layer_name}' collected {len(collected_elements)} code elements.")
@@ -87,28 +87,53 @@ def main():
         for element in collected_elements:
             code_element_to_layer[element] = layer_name
 
-    # Analyze code to find dependencies
-    logging.info("Analyzing code to find dependencies...")
-    analyzer = CodeAnalyzer(set(code_element_to_layer.keys()))
-    dependencies: set[Dependency] = analyzer.analyze()
-    logging.info(f"Found {len(dependencies)} dependencies.")
+    # Prepare the dependency rule
+    logging.info("Preparing dependency rules...")
+    rules = RuleFactory.create_rules(config['ruleset'])
 
-    # Assign dependencies to respective layers
-    logging.info("Assigning dependencies to layers...")
-    for dependency in dependencies:
-        source_layer_name = code_element_to_layer.get(dependency.code_element)
-        if source_layer_name and source_layer_name in layers:
-            layers[source_layer_name].dependencies.add(dependency)
+    # Initialize a list to collect violations and metrics
+    violations: list[Violation] = []
+    metrics = {
+        'total_dependencies': 0,
+        'violations': 0,
+    }
 
-    # Apply rules
-    logging.info("Applying dependency rules...")
-    rule = DependencyRule(config['ruleset'])
-    violations = rule.check(layers=layers)
-    logging.info(f"Analysis complete. Found {len(violations)} violation(s).")
+    # Define the dependency handler function
+    def dependency_handler(dependency):
+        source_element = dependency.code_element
+        target_element = dependency.depends_on_code_element
+
+        # Determine the layers of the source and target elements
+        source_layer = code_element_to_layer.get(source_element)
+        target_layer = code_element_to_layer.get(target_element)
+
+        # Increment total dependencies metric
+        metrics['total_dependencies'] += 1
+
+        # Skip if target element is not mapped to a layer
+        if not target_layer:
+            return
+
+        # Check the dependency against the rules immediately
+        for rule in rules:
+            violation = rule.check(source_layer, target_layer, dependency)
+            if violation:
+                violations.append(violation)
+                metrics['violations'] += 1
+
+    # Analyze code to find dependencies and check them immediately
+    logging.info("Analyzing code and checking dependencies ...")
+    analyzer = CodeAnalyzer(
+        code_elements=set(code_element_to_layer.keys()),
+        dependency_handler=dependency_handler  # Pass the handler to the analyzer
+    )
+    analyzer.analyze()
+
+    logging.info(f"Analysis complete. Found {metrics['violations']} violation(s).")
 
     # Generate report
     logging.info("Generating report...")
-    report_generator = ReportGenerator(violations)
+    report_generator = ReportGenerator(violations)  # Pass metrics to the report generator if needed
     report = report_generator.generate(format=args.report_format)
 
     # Output the report
