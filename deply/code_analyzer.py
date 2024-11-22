@@ -33,9 +33,14 @@ class CodeAnalyzer:
         logging.debug("Starting analysis of code elements.")
         name_to_elements = self._build_name_to_element_map()
         logging.debug(f"Name to elements map built with {len(name_to_elements)} names.")
+
+        file_to_elements: Dict[str, Set[CodeElement]] = {}
         for code_element in self.code_elements:
-            logging.debug(f"Analyzing code element: {code_element.name} in file {code_element.file}")
-            self._extract_dependencies(code_element, name_to_elements)
+            file_to_elements.setdefault(code_element.file, set()).add(code_element)
+
+        for file_path, elements_in_file in file_to_elements.items():
+            logging.debug(f"Analyzing file: {file_path} with {len(elements_in_file)} code elements")
+            self._extract_dependencies_from_file(file_path, elements_in_file, name_to_elements)
         logging.debug("Completed analysis of code elements.")
 
     def _build_name_to_element_map(self) -> Dict[str, Set[CodeElement]]:
@@ -46,33 +51,189 @@ class CodeAnalyzer:
         logging.debug(f"Name to element map contains {len(name_to_element)} entries.")
         return name_to_element
 
-    def _extract_dependencies(
+    def _extract_dependencies_from_file(
             self,
-            code_element: CodeElement,
+            file_path: str,
+            code_elements_in_file: Set[CodeElement],
             name_to_element: Dict[str, Set[CodeElement]]
     ) -> None:
-        logging.debug(f"Extracting dependencies for {code_element.name} in file {code_element.file}")
+        logging.debug(f"Extracting dependencies from file: {file_path}")
         try:
-            with open(code_element.file, 'r', encoding='utf-8') as f:
+            with open(file_path, 'r', encoding='utf-8') as f:
                 source_code = f.read()
-            logging.debug(f"File {code_element.file} read successfully.")
-            tree = ast.parse(source_code, filename=str(code_element.file))
-            logging.debug(f"AST parsing completed for {code_element.file}.")
+            logging.debug(f"File {file_path} read successfully.")
+            tree = ast.parse(source_code, filename=str(file_path))
+            logging.debug(f"AST parsing completed for {file_path}.")
         except (SyntaxError, FileNotFoundError, UnicodeDecodeError) as e:
-            logging.warning(f"Failed to parse {code_element.file}: {e}")
-            return  # Skip files with syntax errors or access issues
+            logging.warning(f"Failed to parse {file_path}: {e}")
+            return
+
+        elements_in_file_by_name = {elem.name: elem for elem in code_elements_in_file}
 
         class DependencyVisitor(ast.NodeVisitor):
             def __init__(
                     self,
-                    source: CodeElement,
+                    code_elements_in_file: Dict[str, CodeElement],
                     dependency_types: List[str],
                     dependency_handler: Callable[[Dependency], None]
             ):
-                self.source = source
+                self.code_elements_in_file = code_elements_in_file
                 self.dependency_types = dependency_types
                 self.dependency_handler = dependency_handler
-                logging.debug(f"DependencyVisitor created for {self.source.name}")
+                self.current_code_element = None
+                logging.debug(f"DependencyVisitor created for file with {len(code_elements_in_file)} code elements")
+
+            def visit_FunctionDef(self, node):
+                self.current_code_element = self.code_elements_in_file.get(node.name)
+                if 'decorator' in self.dependency_types and self.current_code_element:
+                    self._process_decorators(node)
+                if 'type_annotation' in self.dependency_types and self.current_code_element:
+                    if node.returns:
+                        self._process_annotation(node.returns)
+                    for arg in node.args.args + node.args.kwonlyargs:
+                        if arg.annotation:
+                            self._process_annotation(arg.annotation)
+                self.generic_visit(node)
+                self.current_code_element = None
+
+            def visit_ClassDef(self, node):
+                self.current_code_element = self.code_elements_in_file.get(node.name)
+                if 'class_inheritance' in self.dependency_types and self.current_code_element:
+                    for base in node.bases:
+                        base_name = self._get_full_name(base)
+                        dep_elements = name_to_element.get(base_name, set())
+                        for dep_element in dep_elements:
+                            dependency = Dependency(
+                                code_element=self.current_code_element,
+                                depends_on_code_element=dep_element,
+                                dependency_type='class_inheritance',
+                                line=base.lineno,
+                                column=base.col_offset
+                            )
+                            self.dependency_handler(dependency)
+                if 'decorator' in self.dependency_types and self.current_code_element:
+                    self._process_decorators(node)
+                if 'metaclass' in self.dependency_types and self.current_code_element:
+                    for keyword in node.keywords:
+                        if keyword.arg == 'metaclass':
+                            metaclass_name = self._get_full_name(keyword.value)
+                            dep_elements = name_to_element.get(metaclass_name, set())
+                            for dep_element in dep_elements:
+                                dependency = Dependency(
+                                    code_element=self.current_code_element,
+                                    depends_on_code_element=dep_element,
+                                    dependency_type='metaclass',
+                                    line=keyword.value.lineno,
+                                    column=keyword.value.col_offset
+                                )
+                                self.dependency_handler(dependency)
+                self.generic_visit(node)
+                self.current_code_element = None
+
+            def _process_decorators(self, node):
+                for decorator in node.decorator_list:
+                    decorator_name = self._get_full_name(decorator)
+                    dep_elements = name_to_element.get(decorator_name, set())
+                    for dep_element in dep_elements:
+                        dependency = Dependency(
+                            code_element=self.current_code_element,
+                            depends_on_code_element=dep_element,
+                            dependency_type='decorator',
+                            line=decorator.lineno,
+                            column=decorator.col_offset
+                        )
+                        self.dependency_handler(dependency)
+
+            def _process_annotation(self, annotation):
+                annotation_name = self._get_full_name(annotation)
+                dep_elements = name_to_element.get(annotation_name, set())
+                for dep_element in dep_elements:
+                    dependency = Dependency(
+                        code_element=self.current_code_element,
+                        depends_on_code_element=dep_element,
+                        dependency_type='type_annotation',
+                        line=getattr(annotation, 'lineno', 0),
+                        column=getattr(annotation, 'col_offset', 0)
+                    )
+                    self.dependency_handler(dependency)
+
+            def visit_Call(self, node):
+                if 'function_call' in self.dependency_types and self.current_code_element:
+                    if isinstance(node.func, ast.Name):
+                        name = node.func.id
+                        dep_elements = name_to_element.get(name, set())
+                        for dep_element in dep_elements:
+                            dependency = Dependency(
+                                code_element=self.current_code_element,
+                                depends_on_code_element=dep_element,
+                                dependency_type='function_call',
+                                line=node.lineno,
+                                column=node.col_offset
+                            )
+                            self.dependency_handler(dependency)
+                    elif isinstance(node.func, ast.Attribute):
+                        full_name = self._get_full_name(node.func)
+                        dep_elements = name_to_element.get(full_name, set())
+                        for dep_element in dep_elements:
+                            dependency = Dependency(
+                                code_element=self.current_code_element,
+                                depends_on_code_element=dep_element,
+                                dependency_type='function_call',
+                                line=node.lineno,
+                                column=node.col_offset
+                            )
+                            self.dependency_handler(dependency)
+                self.generic_visit(node)
+
+            def visit_Import(self, node):
+                if 'import' in self.dependency_types:
+                    for alias in node.names:
+                        name = alias.asname or alias.name.split('.')[0]
+                        dep_elements = name_to_element.get(name, set())
+                        for dep_element in dep_elements:
+                            for code_element in self.code_elements_in_file.values():
+                                dependency = Dependency(
+                                    code_element=code_element,
+                                    depends_on_code_element=dep_element,
+                                    dependency_type='import',
+                                    line=node.lineno,
+                                    column=node.col_offset
+                                )
+                                self.dependency_handler(dependency)
+                self.generic_visit(node)
+
+            def visit_ImportFrom(self, node):
+                if 'import_from' in self.dependency_types:
+                    for alias in node.names:
+                        name = alias.asname or alias.name
+                        dep_elements = name_to_element.get(name, set())
+                        for dep_element in dep_elements:
+                            for code_element in self.code_elements_in_file.values():
+                                dependency = Dependency(
+                                    code_element=code_element,
+                                    depends_on_code_element=dep_element,
+                                    dependency_type='import_from',
+                                    line=node.lineno,
+                                    column=node.col_offset
+                                )
+                                self.dependency_handler(dependency)
+                self.generic_visit(node)
+
+            def visit_Name(self, node):
+                if 'name_load' in self.dependency_types and self.current_code_element:
+                    if isinstance(node.ctx, ast.Load):
+                        name = node.id
+                        dep_elements = name_to_element.get(name, set())
+                        for dep_element in dep_elements:
+                            dependency = Dependency(
+                                code_element=self.current_code_element,
+                                depends_on_code_element=dep_element,
+                                dependency_type='name_load',
+                                line=node.lineno,
+                                column=node.col_offset
+                            )
+                            self.dependency_handler(dependency)
+                self.generic_visit(node)
 
             def _get_full_name(self, node):
                 if isinstance(node, ast.Name):
@@ -94,219 +255,11 @@ class CodeAnalyzer:
                 else:
                     return None
 
-            def visit_Import(self, node):
-                logging.debug(f"Visiting Import node at line {node.lineno}")
-                if 'import' in self.dependency_types:
-                    for alias in node.names:
-                        name = alias.asname or alias.name.split('.')[0]
-                        dep_elements = name_to_element.get(name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='import',
-                                line=node.lineno,
-                                column=node.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                self.generic_visit(node)
-
-            def visit_ImportFrom(self, node):
-                logging.debug(f"Visiting ImportFrom node at line {node.lineno}")
-                if 'import_from' in self.dependency_types:
-                    module = node.module
-                    for alias in node.names:
-                        name = alias.asname or alias.name
-                        dep_elements = name_to_element.get(name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='import_from',
-                                line=node.lineno,
-                                column=node.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                self.generic_visit(node)
-
-            def visit_Call(self, node):
-                logging.debug(f"Visiting Call node at line {node.lineno}")
-                if 'function_call' in self.dependency_types:
-                    if isinstance(node.func, ast.Name):
-                        name = node.func.id
-                        dep_elements = name_to_element.get(name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='function_call',
-                                line=node.lineno,
-                                column=node.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                    elif isinstance(node.func, ast.Attribute):
-                        full_name = self._get_full_name(node.func)
-                        dep_elements = name_to_element.get(full_name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='function_call',
-                                line=node.lineno,
-                                column=node.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                self.generic_visit(node)
-
-            def visit_ClassDef(self, node):
-                logging.debug(f"Visiting ClassDef node: {node.name} at line {node.lineno}")
-                if 'class_inheritance' in self.dependency_types:
-                    for base in node.bases:
-                        base_name = self._get_full_name(base)
-                        dep_elements = name_to_element.get(base_name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='class_inheritance',
-                                line=base.lineno,
-                                column=base.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                if 'decorator' in self.dependency_types:
-                    self._process_decorators(node)
-                if 'metaclass' in self.dependency_types:
-                    for keyword in node.keywords:
-                        if keyword.arg == 'metaclass':
-                            metaclass_name = self._get_full_name(keyword.value)
-                            dep_elements = name_to_element.get(metaclass_name, set())
-                            for dep_element in dep_elements:
-                                dependency = Dependency(
-                                    code_element=self.source,
-                                    depends_on_code_element=dep_element,
-                                    dependency_type='metaclass',
-                                    line=keyword.value.lineno,
-                                    column=keyword.value.col_offset
-                                )
-                                self.dependency_handler(dependency)
-                self.generic_visit(node)
-
-            def _process_decorators(self, node):
-                for decorator in node.decorator_list:
-                    logging.debug(f"Processing decorator at line {decorator.lineno}")
-                    decorator_name = self._get_full_name(decorator)
-                    dep_elements = name_to_element.get(decorator_name, set())
-                    for dep_element in dep_elements:
-                        dependency = Dependency(
-                            code_element=self.source,
-                            depends_on_code_element=dep_element,
-                            dependency_type='decorator',
-                            line=decorator.lineno,
-                            column=decorator.col_offset
-                        )
-                        self.dependency_handler(dependency)
-
-            def visit_FunctionDef(self, node):
-                logging.debug(f"Visiting FunctionDef node: {node.name} at line {node.lineno}")
-                if 'decorator' in self.dependency_types:
-                    self._process_decorators(node)
-                if 'type_annotation' in self.dependency_types:
-                    # Process return type annotation
-                    if node.returns:
-                        self._process_annotation(node.returns)
-                    # Process parameter type annotations
-                    for arg in node.args.args + node.args.kwonlyargs:
-                        if arg.annotation:
-                            self._process_annotation(arg.annotation)
-                self.generic_visit(node)
-
-            def _process_annotation(self, annotation):
-                logging.debug(f"Processing annotation at line {getattr(annotation, 'lineno', 'unknown')}")
-                annotation_name = self._get_full_name(annotation)
-                dep_elements = name_to_element.get(annotation_name, set())
-                for dep_element in dep_elements:
-                    dependency = Dependency(
-                        code_element=self.source,
-                        depends_on_code_element=dep_element,
-                        dependency_type='type_annotation',
-                        line=getattr(annotation, 'lineno', 0),
-                        column=getattr(annotation, 'col_offset', 0)
-                    )
-                    self.dependency_handler(dependency)
-
-            def visit_ExceptHandler(self, node):
-                logging.debug(f"Visiting ExceptHandler node at line {node.lineno}")
-                if 'exception_handling' in self.dependency_types:
-                    if node.type:
-                        exception_name = self._get_full_name(node.type)
-                        dep_elements = name_to_element.get(exception_name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='exception_handling',
-                                line=node.lineno,
-                                column=node.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                self.generic_visit(node)
-
-            def visit_With(self, node):
-                logging.debug(f"Visiting With node at line {node.lineno}")
-                if 'context_manager' in self.dependency_types:
-                    for item in node.items:
-                        context_expr = item.context_expr
-                        context_name = self._get_full_name(context_expr)
-                        dep_elements = name_to_element.get(context_name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='context_manager',
-                                line=context_expr.lineno,
-                                column=context_expr.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                self.generic_visit(node)
-
-            def visit_Attribute(self, node):
-                logging.debug(f"Visiting Attribute node at line {node.lineno}")
-                if 'attribute_access' in self.dependency_types:
-                    name = self._get_full_name(node)
-                    dep_elements = name_to_element.get(name, set())
-                    for dep_element in dep_elements:
-                        dependency = Dependency(
-                            code_element=self.source,
-                            depends_on_code_element=dep_element,
-                            dependency_type='attribute_access',
-                            line=node.lineno,
-                            column=node.col_offset
-                        )
-                        self.dependency_handler(dependency)
-                self.generic_visit(node)
-
-            def visit_Name(self, node):
-                logging.debug(f"Visiting Name node: {node.id} at line {node.lineno}")
-                if 'name_load' in self.dependency_types:
-                    if isinstance(node.ctx, ast.Load):
-                        name = node.id
-                        dep_elements = name_to_element.get(name, set())
-                        for dep_element in dep_elements:
-                            dependency = Dependency(
-                                code_element=self.source,
-                                depends_on_code_element=dep_element,
-                                dependency_type='name_load',
-                                line=node.lineno,
-                                column=node.col_offset
-                            )
-                            self.dependency_handler(dependency)
-                self.generic_visit(node)
-
         visitor = DependencyVisitor(
-            source=code_element,
+            code_elements_in_file=elements_in_file_by_name,
             dependency_types=self.dependency_types,
             dependency_handler=self.dependency_handler
         )
-        logging.debug(f"Starting AST traversal for {code_element.name}")
+        logging.debug(f"Starting AST traversal for file: {file_path}")
         visitor.visit(tree)
-        logging.debug(f"Completed AST traversal for {code_element.name}")
+        logging.debug(f"Completed AST traversal for file: {file_path}")

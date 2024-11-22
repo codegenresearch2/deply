@@ -92,7 +92,7 @@ def main():
     rules = RuleFactory.create_rules(config['ruleset'])
 
     # Initialize a list to collect violations and metrics
-    violations: list[Violation] = []
+    violations: set[Violation] = set()
     metrics = {
         'total_dependencies': 0,
         'violations': 0,
@@ -118,7 +118,7 @@ def main():
         for rule in rules:
             violation = rule.check(source_layer, target_layer, dependency)
             if violation:
-                violations.append(violation)
+                violations.add(violation)
                 metrics['violations'] += 1
 
     # Analyze code to find dependencies and check them immediately
@@ -133,7 +133,7 @@ def main():
 
     # Generate report
     logging.info("Generating report...")
-    report_generator = ReportGenerator(violations)  # Pass metrics to the report generator if needed
+    report_generator = ReportGenerator(list(violations))
     report = report_generator.generate(format=args.report_format)
 
     # Output the report
@@ -150,7 +150,7 @@ def main():
         print(f"\nTotal violation(s): {len(violations)}\n")
         exit(1)
     else:
-        logging.info("No violations detected.")
+        print("\nNo violations detected.\n")
         exit(0)
 
 
