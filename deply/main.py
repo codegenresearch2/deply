@@ -95,7 +95,6 @@ def main():
     violations: set[Violation] = set()
     metrics = {
         'total_dependencies': 0,
-        'violations': 0,
     }
 
     # Define the dependency handler function
@@ -119,7 +118,6 @@ def main():
             violation = rule.check(source_layer, target_layer, dependency)
             if violation:
                 violations.add(violation)
-                metrics['violations'] += 1
 
     # Analyze code to find dependencies and check them immediately
     logging.info("Analyzing code and checking dependencies ...")
@@ -129,7 +127,7 @@ def main():
     )
     analyzer.analyze()
 
-    logging.info(f"Analysis complete. Found {metrics['violations']} violation(s).")
+    logging.info(f"Analysis complete. Found {metrics['total_dependencies']} dependencies(s).")
 
     # Generate report
     logging.info("Generating report...")
@@ -147,10 +145,10 @@ def main():
 
     # Exit with appropriate status
     if violations:
-        print(f"\nTotal violation(s): {len(violations)}\n")
+        print(f"\nTotal violation(s): {len(violations)}")
         exit(1)
     else:
-        print("\nNo violations detected.\n")
+        print("\nNo violations detected.")
         exit(0)
 
 
