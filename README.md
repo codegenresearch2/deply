@@ -77,8 +77,22 @@ deply:
 
   ruleset:
     views:
-      disallow:
-        - models  # Disallows direct access to models in views
+      disallow_layer_dependencies:
+        - models
+
+    tasks:
+      enforce_function_decorator_usage:
+        - type: function_decorator_name_regex
+          decorator_name_regex: "app.task"
+
+    models:
+      enforce_inheritance:
+        - type: bool
+          any_of:
+            - type: class_inherits
+              base_class: "django.db.models.Model"
+            - type: class_inherits
+              base_class: "django.contrib.auth.models.AbstractUser"
 ```
 
 ### Commands and Usage
@@ -290,6 +304,118 @@ Collects code elements from files matching a specified regular expression.
   element_type: "class"
 ```
 
+### Rules
+
+Rules define the architectural constraints and standards that your layers must adhere to. By default, Deply supports a
+set of rules that you can apply to layers to ensure clean, modular, and maintainable architectures.
+
+Rules are defined under the `ruleset` section in `deply.yaml`, mapping layer names to rules that apply to those layers.
+Each rule can restrict dependencies, enforce naming conventions, decorator usage, inheritance patterns, and more.
+
+## Disallow Layer Dependencies
+
+Prevent certain layers from depending on others:
+
+```yaml
+views:
+  disallow_layer_dependencies:
+    - models
+```
+
+This ensures the views layer cannot depend on the models layer. If views references models directly, a violation will be
+reported.
+
+## Class Naming Rules
+
+Use rules to enforce class naming patterns:
+
+```yaml
+models:
+  enforce_class_naming:
+    - type: class_name_regex
+      class_name_regex: ".*View$"
+```
+
+This ensures that classes in models must end with View. Violations occur if a class name doesn't match.
+
+## Function Naming Rules
+
+Enforce function naming conventions:
+
+```yaml
+views:
+  enforce_function_naming:
+    - type: function_name_regex
+      function_name_regex: ".*view$"
+```
+
+All functions in views must end with view. Non-matching functions trigger violations.
+
+## Class and Function Decorator Usage Rules
+
+Ensure that classes or functions have specific decorators:
+
+```yaml
+auth_protected:
+  enforce_class_decorator_usage:
+    - type: decorator_name_regex
+      decorator_name_regex: "@dataclass"
+```
+
+This ensures that classes in auth_protected have a decorator matching @dataclass.
+
+For functions, a similar rule can be applied:
+
+```yaml
+tasks:
+  enforce_function_decorator_usage:
+    - type: function_decorator_name_regex
+      decorator_name_regex: "app.task"
+```
+
+Functions in tasks must have at least one decorator whose name matches "app.task".
+
+## Inheritance Rules
+
+Require classes to inherit from certain base classes:
+
+```yaml
+models:
+  enforce_inheritance:
+    - type: class_inherits
+      base_class: "django.db.models.Model"
+```
+
+All classes in models must inherit from django.db.models.Model. If a class does not, a violation is reported.
+
+## Boolean Logic (BoolRule)
+
+Use a bool rule type to combine multiple conditions with logical operations `must`, `any_of`, and `must_not`:
+
+```yaml
+models:
+  enforce_inheritance:
+    - type: bool
+      any_of:
+        - type: class_inherits
+          base_class: "django.db.models.Model"
+        - type: class_inherits
+          base_class: "django.contrib.auth.models.AbstractUser"
+```
+
+In this example, classes in models must inherit from either django.db.models.Model or
+django.contrib.auth.models.AbstractUser. If none of these conditions are met, a violation occurs.
+
+- `must`: All specified sub-rules must pass.
+- `any_of`: At least one sub-rule must pass.
+- `must_not`: No sub-rule should pass (they should fail to avoid violation).
+
+This logical flexibility allows complex rule scenarios without deep nesting or duplication.
+
+By mixing and matching these rules, you can enforce your architectural guidelines effectively, ensuring that every layer
+and component adheres to the desired standards. As your project evolves, you can refine or add rules to maintain
+architectural integrity and prevent unwanted dependencies and naming patterns.
+
 ## Running Tests
 
 To test the tool, use `unittest`:
@@ -297,53 +423,6 @@ To test the tool, use `unittest`:
 ```bash
 python -m unittest discover tests
 ```
-
-## Roadmap
-
-Deply is in its early stages, and we are actively working on expanding its features and usability. Here are some key
-priorities based on feedback from the community:
-
-### Planned Features
-
-- **Improved Configuration Options**:
-    - Support for alternative configuration formats.
-    - Consider embedding configurations directly into code (e.g., via decorators) for smaller projects.
-
-- **Baseline Configurations**:
-    - Provide ready-to-use examples for common frameworks, such as Django (MVC pattern), Flask, and generic Python
-      projects.
-
-- **CI/CD Integration**:
-    - Simplify integration into CI pipelines to automatically enforce architectural rules on pull requests.
-    - Add features for generating clear and actionable violation reports in CI logs.
-
-- **Pytest Plugin**:
-    - Develop a Pytest plugin to integrate Deply’s functionality into test runs, providing immediate feedback during
-      development.
-
-- **Visualization**:
-    - Create tools to generate graphical representations of architecture layers and dependency graphs.
-    - Highlight violations visually to make them easier to understand and fix.
-
-- **New Collectors**:
-    - Expand the types of collectors, including:
-        - Type annotation collectors (e.g., enforce rules based on type hints).
-        - Dynamic import collectors to analyze runtime imports.
-        - Enhanced support for tracking decorator-based dependencies.
-
-- **Better Documentation**:
-    - Add beginner-friendly guides to help new developers set up and use Deply effectively.
-    - Provide more real-world examples and explain architectural concepts in a straightforward way.
-
-### Long-Term Goals
-
-- **Plugin Ecosystem**:
-    - Provide an API for custom collectors and rules so users can extend Deply for their specific use cases.
-
-- **Performance Optimization**:
-    - Optimize performance for large codebases to ensure fast analysis even with complex configurations.
-
----
 
 Feel free to contribute to this roadmap or suggest features by opening an issue or submitting a pull request! Together,
 we can make Deply a powerful tool for the Python community. 😊

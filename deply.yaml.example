@@ -50,5 +50,19 @@ deply:
 
   ruleset:
     views:
-      disallow:
+      disallow_layer_dependencies:
         - models
+
+    tasks:
+      enforce_function_decorator_usage:
+        - type: function_decorator_name_regex
+          decorator_name_regex: "app.task"
+
+    models:
+      enforce_inheritance:
+        - type: bool
+          any_of:
+            - type: class_inherits
+              base_class: "django.db.models.Model"
+            - type: class_inherits
+              base_class: "django.contrib.auth.models.AbstractUser"

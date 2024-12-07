@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from deply import __version__
-from deply.rules import RuleFactory
+from deply.rules.rule_factory import RuleFactory
 from .code_analyzer import CodeAnalyzer
 from .collectors.collector_factory import CollectorFactory
 from .config_parser import ConfigParser
@@ -118,8 +118,8 @@ def main():
     for ln, l in layers.items():
         logging.info(f"Layer '{ln}' collected {len(l.code_elements)} code elements.")
 
-    # Prepare the dependency rule
-    logging.info("Preparing dependency rules...")
+    # Prepare the rules
+    logging.info("Preparing rules...")
     rules = RuleFactory.create_rules(ruleset)
 
     # Initialize a list to collect violations and metrics
@@ -159,6 +159,17 @@ def main():
     analyzer.analyze()
 
     logging.info(f"Analysis complete. Found {metrics['total_dependencies']} dependencies(s).")
+
+    # Now also run element-based checks
+    # We iterate over each layer and its code elements
+    # and run rule.check_element for each rule that supports it.
+    logging.info("Running element-based checks ...")
+    for layer_name, layer in layers.items():
+        for element in layer.code_elements:
+            for rule in rules:
+                v = rule.check_element(layer_name, element)
+                if v:
+                    violations.add(v)
 
     # Generate report
     logging.info("Generating report...")

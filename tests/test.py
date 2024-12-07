@@ -74,7 +74,7 @@ class TestCodeAnalyzer(unittest.TestCase):
                 ],
                 'ruleset': {
                     'views': {
-                        'disallow': ['models']
+                        'disallow_layer_dependencies': ['models']
                     }
                 }
             }

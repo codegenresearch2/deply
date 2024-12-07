@@ -93,7 +93,7 @@ class TestCollectors(unittest.TestCase):
         collector_config = {'base_class': 'BaseModel'}
         paths = [str(self.test_project_dir)]
         exclude_files = []
-        collector = ClassInheritsCollector(collector_config, paths, exclude_files)
+        collector = ClassInheritsCollector(collector_config)
         collected_elements = self.run_collector(collector, paths, exclude_files)
         collected_class_names = {element.name for element in collected_elements}
         expected_classes = {'UserModel'}
@@ -141,7 +141,7 @@ class TestCollectors(unittest.TestCase):
         }
         paths = [str(self.test_project_dir)]
         exclude_files = []
-        collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
+        collector = DecoratorUsageCollector(collector_config)
         collected_elements = self.run_collector(collector, paths, exclude_files)
         collected_names = {element.name for element in collected_elements}
         expected_names = {'UserController'}
@@ -151,7 +151,7 @@ class TestCollectors(unittest.TestCase):
         collector_config = {
             'decorator_regex': '^.*decorator$',
         }
-        collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
+        collector = DecoratorUsageCollector(collector_config)
         collected_elements = self.run_collector(collector, paths, exclude_files)
         collected_names = {element.name for element in collected_elements}
         expected_names = {'UserService', 'helper_function'}
@@ -177,7 +177,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         from deply.collectors.function_name_regex_collector import FunctionNameRegexCollector
-        collector = FunctionNameRegexCollector(collector_config, paths, exclude_files)
+        collector = FunctionNameRegexCollector(collector_config)
         collected_elements = self.run_collector(collector, paths, exclude_files)
         collected_function_names = {element.name for element in collected_elements}
         expected_functions = {'helper_function', 'helper_secondary_function'}
@@ -237,7 +237,7 @@ class TestCollectors(unittest.TestCase):
                 ],
                 'ruleset': {
                     'controllers_layer': {
-                        'disallow': ['models_layer']
+                        'disallow_layer_dependencies': ['models_layer']
                     }
                 }
             }

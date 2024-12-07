@@ -15,15 +15,15 @@ class CollectorFactory:
         if collector_type == "file_regex":
             return FileRegexCollector(config, paths, exclude_files)
         elif collector_type == "class_inherits":
-            return ClassInheritsCollector(config, paths, exclude_files)
+            return ClassInheritsCollector(config)
         elif collector_type == "class_name_regex":
             return ClassNameRegexCollector(config, paths, exclude_files)
         elif collector_type == "function_name_regex":
-            return FunctionNameRegexCollector(config, paths, exclude_files)
+            return FunctionNameRegexCollector(config)
         elif collector_type == "directory":
             return DirectoryCollector(config, paths, exclude_files)
         elif collector_type == "decorator_usage":
-            return DecoratorUsageCollector(config, paths, exclude_files)
+            return DecoratorUsageCollector(config)
         elif collector_type == "bool":
             return BoolCollector(config, paths, exclude_files)
         else:
