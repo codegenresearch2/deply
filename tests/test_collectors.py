@@ -140,6 +140,23 @@ class TestCollectors(unittest.TestCase):
         collected_elements = collector.collect()
         self.assertEqual(len(collected_elements), 0)
 
+    def test_function_name_regex_collector(self):
+        # Add a new function in utilities directory
+        extra_py = self.test_project_dir / 'utilities' / 'extra.py'
+        extra_py.write_text('def helper_secondary_function():\n    pass\n')
+
+        collector_config = {
+            'function_name_regex': '^helper_.*'
+        }
+        paths = [str(self.test_project_dir)]
+        exclude_files = []
+        from deply.collectors.function_name_regex_collector import FunctionNameRegexCollector
+        collector = FunctionNameRegexCollector(collector_config, paths, exclude_files)
+        collected_elements = collector.collect()
+        collected_function_names = {element.name for element in collected_elements}
+        expected_functions = {'helper_function', 'helper_secondary_function'}
+        self.assertEqual(collected_function_names, expected_functions)
+
     def test_bool_collector(self):
         collector_config = {
             'type': 'bool',

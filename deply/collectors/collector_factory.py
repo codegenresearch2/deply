@@ -6,6 +6,7 @@ from .class_inherits_collector import ClassInheritsCollector
 from .class_name_regex_collector import ClassNameRegexCollector
 from .directory_collector import DirectoryCollector
 from .file_regex_collector import FileRegexCollector
+from .function_name_regex_collector import FunctionNameRegexCollector
 
 
 class CollectorFactory:
@@ -18,6 +19,8 @@ class CollectorFactory:
             return ClassInheritsCollector(config, paths, exclude_files)
         elif collector_type == "class_name_regex":
             return ClassNameRegexCollector(config, paths, exclude_files)
+        elif collector_type == "function_name_regex":
+            return FunctionNameRegexCollector(config, paths, exclude_files)
         elif collector_type == "directory":
             return DirectoryCollector(config, paths, exclude_files)
         elif collector_type == "decorator_usage":

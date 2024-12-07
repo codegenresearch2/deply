@@ -43,6 +43,11 @@ deply:
         - type: decorator_usage
           decorator_name: "login_required"
 
+    - name: helper_functions
+      collectors:
+        - type: function_name_regex
+          function_name_regex: "^helper_.*"
+
   ruleset:
     views:
       disallow:

@@ -209,6 +209,23 @@ Collects classes whose names match a specified regular expression.
   exclude_files_regex: ".*excluded_folder_name.*"
 ```
 
+### FunctionNameRegexCollector
+
+Collects functions whose names match a specified regular expression.
+
+**Configuration Options**:
+
+- `type`: `"function_name_regex"`
+- `function_name_regex`: Regular expression to match function names.
+- `exclude_files_regex` (optional): Regular expression to exclude certain files.
+
+**Example**:
+
+```yaml
+- type: function_name_regex
+  function_name_regex: "^helper_.*"
+```
+
 #### **DecoratorUsageCollector**
 
 Collects functions or classes that use a specific decorator.
