@@ -6,20 +6,26 @@ from ..models.code_element import CodeElement
 
 
 class FunctionNamingRule(BaseRule):
+    VIOLATION_TYPE = "function_naming"
+
     def __init__(self, layer_name: str, regex: str):
         self.layer_name = layer_name
-        self.regex = re.compile(regex)
+        self.function_name_pattern = re.compile(regex)
 
     def check_element(self, layer_name: str, element: CodeElement) -> Optional[Violation]:
-        if layer_name == self.layer_name and element.element_type == 'function':
-            func_name = element.name.split('.')[-1]
-            if not self.regex.match(func_name):
-                return Violation(
-                    file=element.file,
-                    element_name=element.name,
-                    element_type=element.element_type,
-                    line=element.line,
-                    column=element.column,
-                    message=f"Function '{element.name}' does not match naming pattern '{self.regex.pattern}'"
-                )
-        return None
+        if layer_name != self.layer_name or element.element_type != 'function':
+            return None
+        function_name = element.name.split('.')[-1]
+        if self.function_name_pattern.match(function_name):
+            return None
+        return Violation(
+            file=element.file,
+            element_name=element.name,
+            element_type=element.element_type,
+            line=element.line,
+            column=element.column,
+            message=(
+                f"Function '{element.name}' does not match naming pattern '{self.function_name_pattern.pattern}'."
+            ),
+            violation_type=self.VIOLATION_TYPE
+        )

@@ -187,10 +187,8 @@ def main():
 
     # Exit with appropriate status
     if violations:
-        print(f"\nTotal violation(s): {len(violations)}")
         exit(1)
     else:
-        print("\nNo violations detected.")
         exit(0)
 
 

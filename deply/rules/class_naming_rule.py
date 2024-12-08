@@ -6,20 +6,26 @@ from ..models.code_element import CodeElement
 
 
 class ClassNamingRule(BaseRule):
+    VIOLATION_TYPE = "class_naming"
+
     def __init__(self, layer_name: str, regex: str):
         self.layer_name = layer_name
-        self.regex = re.compile(regex)
+        self.class_name_pattern = re.compile(regex)
 
     def check_element(self, layer_name: str, element: CodeElement) -> Optional[Violation]:
-        if layer_name == self.layer_name and element.element_type == 'class':
-            class_name = element.name.split('.')[-1]
-            if not self.regex.match(class_name):
-                return Violation(
-                    file=element.file,
-                    element_name=element.name,
-                    element_type=element.element_type,
-                    line=element.line,
-                    column=element.column,
-                    message=f"Class '{element.name}' does not match naming pattern '{self.regex.pattern}'"
-                )
-        return None
+        if layer_name != self.layer_name or element.element_type != 'class':
+            return None
+        class_name = element.name.split('.')[-1]
+        if self.class_name_pattern.match(class_name):
+            return None
+        return Violation(
+            file=element.file,
+            element_name=element.name,
+            element_type=element.element_type,
+            line=element.line,
+            column=element.column,
+            message=(
+                f"Class '{element.name}' does not match naming pattern '{self.class_name_pattern.pattern}'."
+            ),
+            violation_type=self.VIOLATION_TYPE
+        )
