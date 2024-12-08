@@ -151,7 +151,7 @@ class TestRules(unittest.TestCase):
         exit_code, output = self.run_deply(config_data)
         # MyModel does not inherit from BaseModel or AnotherModel, so any_of fails
         self.assertEqual(exit_code, 1, f"Expected violations, but got exit code {exit_code}\nOutput:\n{output}")
-        self.assertIn("BoolRule failed: none of the any_of rules passed", output)
+        self.assertIn("Class 'MyModel' must inherit from", output)
 
     def test_bool_rule_must_pass(self):
         # must means all conditions must pass (no violations on sub-rules).
@@ -237,7 +237,7 @@ class TestRules(unittest.TestCase):
 
         exit_code, output = self.run_deply(config_data)
         self.assertEqual(exit_code, 1, f"Expected violations, but got exit code {exit_code}\nOutput:\n{output}")
-        self.assertIn("BoolRule failed: must rule", output)
+        self.assertIn("Class 'BadModel' does not match naming pattern", output)
 
     def test_bool_rule_must_not_pass(self):
         # must_not means all must fail (all must produce violations).

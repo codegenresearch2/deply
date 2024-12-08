@@ -1,4 +1,4 @@
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, Optional
 from deply.models.code_element import CodeElement
 from deply.models.violation import Violation
 from deply.rules.base_rule import BaseRule
@@ -19,53 +19,49 @@ class BoolRule(BaseRule):
     def check_element(self, layer_name: str, element: CodeElement) -> Optional[Violation]:
         if layer_name != self.layer_name:
             return None
+        must_violation = self._check_must_rules(layer_name, element)
+        if must_violation:
+            return must_violation
+        any_of_violation = self._check_any_of_rules(layer_name, element)
+        if any_of_violation:
+            return any_of_violation
+        must_not_violation = self._check_must_not_rules(layer_name, element)
+        if must_not_violation:
+            return must_not_violation
+        return None
 
-        # must: all must pass (no violations)
-        for r in self.must_rules:
-            v = r.check_element(layer_name, element)
-            if v:
-                # This means this must rule failed by producing a violation
+    def _check_must_rules(self, layer_name: str, element: CodeElement) -> Optional[Violation]:
+        for rule in self.must_rules:
+            violation = rule.check_element(layer_name, element)
+            if violation:
+                return violation
+        return None
+
+    def _check_any_of_rules(self, layer_name: str, element: CodeElement) -> Optional[Violation]:
+        if not self.any_of_rules:
+            return None
+        passed = False
+        last_violation = None
+        for rule in self.any_of_rules:
+            violation = rule.check_element(layer_name, element)
+            if not violation:
+                passed = True
+                break
+            last_violation = violation
+        if not passed and last_violation:
+            return last_violation
+        return None
+
+    def _check_must_not_rules(self, layer_name: str, element: CodeElement) -> Optional[Violation]:
+        for rule in self.must_not_rules:
+            violation = rule.check_element(layer_name, element)
+            if not violation:
                 return Violation(
                     file=element.file,
                     element_name=element.name,
                     element_type=element.element_type,
                     line=element.line,
                     column=element.column,
-                    message=f"BoolRule failed: must rule {r.__class__.__name__} produced a violation."
+                    message=f"BoolRule failed: must_not rule {rule.__class__.__name__} did not produce a violation."
                 )
-
-        # any_of: at least one must pass (no violation)
-        if self.any_of_rules:
-            any_passed = False
-            for r in self.any_of_rules:
-                v = r.check_element(layer_name, element)
-                if not v:
-                    # This rule passed (no violation)
-                    any_passed = True
-                    break
-            if not any_passed:
-                return Violation(
-                    file=element.file,
-                    element_name=element.name,
-                    element_type=element.element_type,
-                    line=element.line,
-                    column=element.column,
-                    message="BoolRule failed: none of the any_of rules passed."
-                )
-
-        # must_not: all must fail (all must produce violations)
-        for r in self.must_not_rules:
-            v = r.check_element(layer_name, element)
-            if not v:
-                # must_not rule did not produce violation, meaning it passed, which we don't want
-                return Violation(
-                    file=element.file,
-                    element_name=element.name,
-                    element_type=element.element_type,
-                    line=element.line,
-                    column=element.column,
-                    message=f"BoolRule failed: must_not rule {r.__class__.__name__} did not produce a violation."
-                )
-
-        # If we reached here, all conditions are satisfied
         return None
