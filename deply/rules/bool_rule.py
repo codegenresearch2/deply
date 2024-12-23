@@ -1,11 +1,12 @@
 from typing import Dict, Any, Optional
 from deply.models.code_element import CodeElement
 from deply.models.violation import Violation
+from deply.models.violation_types import ViolationType
 from deply.rules.base_rule import BaseRule
 
 
 class BoolRule(BaseRule):
-    VIOLATION_TYPE = "bool_rule"
+    VIOLATION_TYPE = ViolationType.BOOL_RULE
 
     def __init__(self, layer_name: str, config: Dict[str, Any]):
         self.layer_name = layer_name

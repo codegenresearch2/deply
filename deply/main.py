@@ -6,9 +6,7 @@ import sys
 from pathlib import Path
 
 from deply import __version__
-from deply.reports.formats.github_actions_report import GitHubActionsReport
-from deply.reports.formats.json_report import JsonReport
-from deply.reports.formats.text_report import TextReport
+from deply.reports.report_generator import ReportGenerator
 from deply.rules.rule_factory import RuleFactory
 from .code_analyzer import CodeAnalyzer
 from .collectors.collector_factory import CollectorFactory
@@ -161,17 +159,7 @@ def main():
                     violations.add(v)
 
     logging.info("Generating report...")
-    violations_list = list(violations)
-    if args.report_format == "text":
-        reporter = TextReport(violations_list)
-    elif args.report_format == "json":
-        reporter = JsonReport(violations_list)
-    elif args.report_format == "github-actions":
-        reporter = GitHubActionsReport(violations_list)
-    else:
-        reporter = TextReport(violations_list)
-
-    report = reporter.generate()
+    report = ReportGenerator(list(violations)).generate(args.report_format)
 
     if args.output:
         output_path = Path(args.output)

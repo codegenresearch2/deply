@@ -1,11 +1,13 @@
 from typing import Optional
+
+from deply.models.violation_types import ViolationType
 from deply.rules.base_rule import BaseRule
 from deply.models.code_element import CodeElement
 from deply.models.violation import Violation
 
 
 class InheritanceRule(BaseRule):
-    VIOLATION_TYPE = "inheritance"
+    VIOLATION_TYPE = ViolationType.INHERITANCE
 
     def __init__(self, layer_name: str, base_class: str):
         self.layer_name = layer_name

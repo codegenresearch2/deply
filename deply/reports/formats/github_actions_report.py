@@ -22,14 +22,14 @@ class GitHubActionsReport:
 
         # Add summary at the end as a comment
         total_count = len(self.violations)
-        lines.append(f"# Total Violations: {total_count}")
         for violation_type, type_violations in grouped_violations.items():
             lines.append(f"# {violation_type}: {len(type_violations)}")
+        lines.append(f"# Total Violations: {total_count}")
 
         return "\n".join(lines)
 
     def _group_violations_by_type(self) -> dict[str, List[Violation]]:
         grouped = defaultdict(list)
         for violation in self.violations:
-            grouped[violation.violation_type].append(violation)
+            grouped[violation.violation_type.display_name].append(violation)
         return dict(grouped)

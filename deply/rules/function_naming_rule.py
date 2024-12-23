@@ -3,10 +3,11 @@ from typing import Optional
 from .base_rule import BaseRule
 from ..models.violation import Violation
 from ..models.code_element import CodeElement
+from ..models.violation_types import ViolationType
 
 
 class FunctionNamingRule(BaseRule):
-    VIOLATION_TYPE = "function_naming"
+    VIOLATION_TYPE = ViolationType.FUNCTION_NAMING
 
     def __init__(self, layer_name: str, regex: str):
         self.layer_name = layer_name

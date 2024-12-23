@@ -3,10 +3,11 @@ from typing import Optional
 from .base_rule import BaseRule
 from ..models.violation import Violation
 from ..models.code_element import CodeElement
+from ..models.violation_types import ViolationType
 
 
 class FunctionDecoratorUsageRule(BaseRule):
-    VIOLATION_TYPE = "function_decorator_usage"
+    VIOLATION_TYPE = ViolationType.FUNCTION_DECORATOR_USAGE
 
     def __init__(self, layer_name: str, decorator_regex: str):
         self.layer_name = layer_name

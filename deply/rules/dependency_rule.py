@@ -1,11 +1,12 @@
 from typing import List, Optional
 from deply.models.dependency import Dependency
 from deply.models.violation import Violation
+from deply.models.violation_types import ViolationType
 from deply.rules.base_rule import BaseRule
 
 
 class DependencyRule(BaseRule):
-    VIOLATION_TYPE = "disallowed_dependency"
+    VIOLATION_TYPE = ViolationType.DISALLOWED_DEPENDENCY
 
     def __init__(self, layer_name: str, disallowed_layers: List[str]):
         self.layer_name = layer_name
