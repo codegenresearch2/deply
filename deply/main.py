@@ -6,6 +6,7 @@ import sys
 from pathlib import Path
 
 from deply import __version__
+from deply.diagrams.marmaid_diagram_builder import MermaidDiagramBuilder
 from deply.reports.report_generator import ReportGenerator
 from deply.rules.rule_factory import RuleFactory
 from .code_analyzer import CodeAnalyzer
@@ -32,6 +33,9 @@ def main():
         help="Format of the output report"
     )
     parser_analyze.add_argument('--output', type=str, help="Output file for the report")
+    parser_analyze.add_argument('--mermaid', action='store_true',
+                                help="Generate a Mermaid diagram for layer dependencies (red = violation)")
+
     args = parser.parse_args()
 
     if args.version:
@@ -63,7 +67,6 @@ def main():
 
     paths = [Path(p) for p in config["paths"]]
     exclude_files = [re.compile(pattern) for pattern in config["exclude_files"]]
-
     layers_config = config["layers"]
     ruleset = config["ruleset"]
 
@@ -85,18 +88,22 @@ def main():
     for base_path in paths:
         if not base_path.exists():
             continue
-        files = [f for f in base_path.rglob("*.py") if f.is_file()]
+        all_python_files = [f for f in base_path.rglob("*.py") if f.is_file()]
 
         def is_excluded(file_path: Path) -> bool:
-            relative_path = str(file_path.relative_to(base_path))
+            try:
+                relative_path = str(file_path.relative_to(base_path))
+            except ValueError:
+                return True
             return any(pattern.search(relative_path) for pattern in exclude_files)
 
-        files = [f for f in files if not is_excluded(f)]
-        all_files.extend(files)
+        filtered_files = [f for f in all_python_files if not is_excluded(f)]
+        all_files.extend(filtered_files)
 
     layers: dict[str, Layer] = {}
     for layer_config in layers_config:
-        layers[layer_config["name"]] = Layer(name=layer_config["name"], code_elements=set(), dependencies=set())
+        layer_name = layer_config["name"]
+        layers[layer_name] = Layer(name=layer_name, code_elements=set(), dependencies=set())
 
     code_element_to_layer: dict[CodeElement, str] = {}
     logging.info("Collecting code elements for each layer...")
@@ -105,41 +112,50 @@ def main():
             with open(file_path, "r", encoding="utf-8") as f:
                 file_content = f.read()
             file_ast = ast.parse(file_content, filename=str(file_path))
-        except:
+        except Exception as ex:
+            logging.debug(f"Skipping file {file_path} due to parse error: {ex}")
             continue
 
         for layer_name, collector in layer_collectors:
-            matched = collector.match_in_file(file_ast, file_path)
-            for m in matched:
-                layers[layer_name].code_elements.add(m)
-                code_element_to_layer[m] = layer_name
+            matched_elements = collector.match_in_file(file_ast, file_path)
+            for element in matched_elements:
+                layers[layer_name].code_elements.add(element)
+                code_element_to_layer[element] = layer_name
 
-    for ln, l in layers.items():
-        logging.info(f"Layer '{ln}' collected {len(l.code_elements)} code elements.")
+    for layer_name, layer in layers.items():
+        logging.info(f"Layer '{layer_name}' collected {len(layer.code_elements)} code elements.")
 
     logging.info("Preparing rules...")
     rules = RuleFactory.create_rules(ruleset)
 
     violations: set[Violation] = set()
-    metrics = {
-        'total_dependencies': 0,
-    }
+    metrics = {'total_dependencies': 0}
+
+    mermaid_builder = MermaidDiagramBuilder()
 
     def dependency_handler(dependency):
-        source_element = dependency.code_element
-        target_element = dependency.depends_on_code_element
-
-        source_layer = code_element_to_layer.get(source_element)
-        target_layer = code_element_to_layer.get(target_element)
+        source = dependency.code_element
+        target = dependency.depends_on_code_element
+        source_layer = code_element_to_layer.get(source)
+        target_layer = code_element_to_layer.get(target)
         metrics['total_dependencies'] += 1
 
-        if not target_layer:
+        if not source_layer or not target_layer:
+            return
+        if source_layer == target_layer:
+            # Intra-layer dependency, not relevant for cross-layer analysis
             return
 
+        # Check if there's a violation for this dependency
+        has_violation = False
         for rule in rules:
             violation = rule.check(source_layer, target_layer, dependency)
             if violation:
                 violations.add(violation)
+                has_violation = True
+
+        # Pass edge info to mermaid builder
+        mermaid_builder.add_edge(source_layer, target_layer, has_violation)
 
     logging.info("Analyzing code and checking dependencies ...")
     analyzer = CodeAnalyzer(
@@ -168,6 +184,11 @@ def main():
     else:
         print("\n")
         print(report)
+
+    if args.mermaid:
+        mermaid_diagram = mermaid_builder.build_diagram()
+        print("\n[Mermaid Diagram of Layer Dependencies]\n")
+        print(mermaid_diagram)
 
     if violations:
         exit(1)
