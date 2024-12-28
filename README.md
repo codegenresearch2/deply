@@ -1,10 +1,16 @@
-# Deply
+# Deply - <em>keep your python architecture clean</em>
+
+![Static Badge](https://img.shields.io/badge/stable-v0.5.2-319cd2)
+![Static Badge](https://img.shields.io/badge/downloads->2_k_month-2282c2)
+![Static Badge](https://img.shields.io/badge/test-passing-98c525)
+![Static Badge](https://img.shields.io/badge/coverage-99%25-98c525)
+![Static Badge](https://img.shields.io/badge/python-3.8_|_3.9_|3.10_|_3.11_|_3.12-98c525)
+
+---
 
 **Deply** is a standalone Python tool for enforcing architectural patterns and dependencies in large Python projects. By
 analyzing code structure and dependencies, this tool ensures that architectural rules are followed, promoting cleaner,
 more maintainable, and modular codebases.
-
-Inspired by [Deptrac](https://github.com/qossmic/deptrac).
 
 ## Features
 
