@@ -121,6 +121,7 @@ By default, Deply looks for a configuration file named `deply.yaml` in the curre
     - `--config`: Path to the configuration YAML file. Default is `deply.yaml`.
     - `--report-format`: Format of the output report. Choices are `text`, `json`, `html`. Default is `text`.
     - `--output`: Output file for the report. If not specified, the report is printed to the console.
+    - `--mermaid`: Generates a Mermaid diagram of your layer dependencies, printing it to the console at the end of the analysis. Any edges that represent a violation are shown in red.
 - `-h`, `--help`: Displays help information about Deply and its commands.
 
 #### Examples
