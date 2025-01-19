@@ -28,5 +28,6 @@ class DependencyRule(BaseRule):
             line=dependency.line,
             column=dependency.column,
             message=message,
-            violation_type=self.VIOLATION_TYPE
+            violation_type=self.VIOLATION_TYPE,
+            dependency=dependency,
         )

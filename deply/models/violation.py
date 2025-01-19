@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 
+from deply.models.dependency import Dependency
 from deply.models.violation_types import ViolationType
 
 
@@ -13,6 +14,7 @@ class Violation:
     column: int
     message: str
     violation_type: ViolationType
+    dependency: Dependency = None
 
     def __hash__(self):
         return hash((self.file, self.line, self.column, self.message, self.violation_type))

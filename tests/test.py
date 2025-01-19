@@ -1,4 +1,3 @@
-# tests/test_code_analyzer.py
 import unittest
 import tempfile
 import shutil
