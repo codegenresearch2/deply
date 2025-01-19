@@ -29,16 +29,17 @@ class TestFalseDependencyPath(unittest.TestCase):
         self.test_project_dir = Path(self.test_dir) / 'test_project'
         self.test_project_dir.mkdir()
 
-        file_with_linkparams = self.test_project_dir / 'service.py'
-        file_with_linkparams.write_text(
+        # Original files for the existing test_path_not_flagged_as_false_dependency
+        service_py = self.test_project_dir / 'service.py'
+        service_py.write_text(
             'from dataclasses import dataclass, field\n'
             'class LinkParams:\n'
             '    path: str = field(default="")\n'
             '    query: dict[str, str] = field(default_factory=dict)\n'
         )
 
-        file_with_django_import = self.test_project_dir / 'urls.py'
-        file_with_django_import.write_text(
+        urls_py = self.test_project_dir / 'urls.py'
+        urls_py.write_text(
             'from django.urls import path\n'
             '\n'
             'def create_path():\n'
@@ -48,7 +49,7 @@ class TestFalseDependencyPath(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.test_dir)
 
-    def run_deply(self, config_data):
+    def run_deply(self, config_data) -> tuple[int, str]:
         config_path = Path(self.test_dir) / 'deply.yaml'
         with config_path.open('w') as f:
             yaml.dump(config_data, f)
@@ -103,6 +104,144 @@ class TestFalseDependencyPath(unittest.TestCase):
 
         exit_code, output = self.run_deply(config_data)
         self.assertEqual(exit_code, 0, f"Expected no violations. Output:\n{output}")
+
+    def test_directory_collector_no_false_dependency(self):
+        """
+        This new test uses DirectoryCollector on 'services' and 'urls' directories
+        to ensure referencing django.urls.path doesn't conflict with a local 'path'
+        field in the service layer.
+        """
+        services_dir = self.test_project_dir / 'services'
+        services_dir.mkdir(exist_ok=True)
+        (services_dir / '__init__.py').write_text('')  # optional if needed
+
+        my_service_file = services_dir / 'my_service.py'
+        my_service_file.write_text(
+            'class MyService:\n'
+            '    path: str = "/test-path"\n'
+            '    def do_something(self):\n'
+            '        return self.path\n'
+        )
+
+        urls_dir = self.test_project_dir / 'urls_collector'
+        urls_dir.mkdir(exist_ok=True)
+        (urls_dir / '__init__.py').write_text('')  # optional if needed
+
+        my_urls_file = urls_dir / 'my_urls.py'
+        my_urls_file.write_text(
+            'from django.urls import path\n'
+            'def create_path():\n'
+            '    return path("some/url", None)\n'
+        )
+
+        config_data = {
+            'deply': {
+                'paths': ['./test_project'],
+                'layers': [
+                    {
+                        'name': 'services_layer',
+                        'collectors': [
+                            {
+                                'type': 'directory',
+                                'directories': ['services']
+                            }
+                        ]
+                    },
+                    {
+                        'name': 'urls_layer',
+                        'collectors': [
+                            {
+                                'type': 'directory',
+                                'directories': ['urls_collector']
+                            }
+                        ]
+                    }
+                ],
+                # Disallow the 'urls_layer' from depending on 'services_layer'
+                'ruleset': {
+                    'urls_layer': {
+                        'disallow_layer_dependencies': ['services_layer']
+                    }
+                }
+            }
+        }
+
+        exit_code, output = self.run_deply(config_data)
+        # We expect no violations, because referencing django.urls.path
+        # must not be confused with MyService.path
+        self.assertEqual(exit_code, 0, f"Expected no violations. Output:\n{output}")
+
+    def test_directory_collector_with_dependent_variable_and_directory_collector(self):
+        """
+        This new test uses DirectoryCollector on 'services' and 'urls' directories
+        to ensure referencing django.urls.path doesn't conflict with a local 'path'
+        field in the service layer.
+        """
+        services_dir = self.test_project_dir / 'services'
+        services_dir.mkdir(exist_ok=True)
+        (services_dir / '__init__.py').write_text('')  # optional if needed
+
+        my_service_file = services_dir / 'my_service.py'
+        my_service_file.write_text(
+            'class MyService:\n'
+            '    path: str = "/test-path"\n'
+            '    def do_something(self):\n'
+            '        return self.path\n'
+            'test_var = 1\n'
+        )
+
+        urls_dir = self.test_project_dir / 'urls_collector'
+        urls_dir.mkdir(exist_ok=True)
+        (urls_dir / '__init__.py').write_text('')  # optional if needed
+
+        my_urls_file = urls_dir / 'my_urls.py'
+        my_urls_file.write_text(
+            'from django.urls import path\n'
+            'from services import test_var\n'
+            'def create_path():\n'
+            '    return path("some/url", None)\n'
+        )
+
+        config_data = {
+            'deply': {
+                'paths': ['./test_project'],
+                'layers': [
+                    {
+                        'name': 'services_layer',
+                        'collectors': [
+                            {
+                                'type': 'directory',
+                                'directories': ['services']
+                            }
+                        ]
+                    },
+                    {
+                        'name': 'urls_layer',
+                        'collectors': [
+                            {
+                                'type': 'directory',
+                                'directories': ['urls_collector']
+                            }
+                        ]
+                    }
+                ],
+                # Disallow the 'urls_layer' from depending on 'services_layer'
+                'ruleset': {
+                    'urls_layer': {
+                        'disallow_layer_dependencies': ['services_layer']
+                    }
+                }
+            }
+        }
+
+        exit_code, output = self.run_deply(config_data)
+        # We expect no violations, because referencing django.urls.path
+        # must not be confused with MyService.path
+        self.assertEqual(exit_code, 1, f"Expected no violations. Output:\n{output}")
+        self.assertTrue(
+            "test_project/urls_collector/my_urls.py:2:0 - Layer 'urls_layer' is not allowed to depend on layer 'services_layer'. Dependency type: import_from." in output,
+            f"Expected no violations. Output:\n{output}"
+        )
 
 
 if __name__ == '__main__':

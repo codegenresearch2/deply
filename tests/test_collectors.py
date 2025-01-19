@@ -254,6 +254,35 @@ class TestCollectors(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertIn("Layer 'controllers_layer' is not allowed to depend on layer 'models_layer'", output)
 
+    def test_directory_collector_class_fields_with_fqn(self):
+        (self.test_project_dir / 'services').mkdir(exist_ok=True)
+        service_file = self.test_project_dir / 'services' / 'my_service.py'
+        service_file.write_text(
+            'class MyService:\n'
+            '    path: str = "/some/path"\n'
+            '    another_var = 123\n'
+        )
+
+        collector_config = {
+            'directories': ['services'],
+        }
+        paths = [str(self.test_project_dir)]
+        exclude_files = []
+
+        from deply.collectors.directory_collector import DirectoryCollector
+        collector = DirectoryCollector(collector_config, paths, exclude_files)
+
+        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_variable_names = {
+            elem.name for elem in collected_elements if elem.element_type == 'variable'
+        }
+
+        # We expect 'MyService.path' and 'MyService.another_var', not just 'path' or 'another_var'
+        self.assertIn('MyService.path', collected_variable_names)
+        self.assertIn('MyService.another_var', collected_variable_names)
+        self.assertNotIn('path', collected_variable_names)
+        self.assertNotIn('another_var', collected_variable_names)
+
     @staticmethod
     def capture_output():
         from contextlib import contextmanager

@@ -8,6 +8,13 @@ from deply.models.code_element import CodeElement
 from deply.utils.ast_utils import get_import_aliases, get_base_name, get_decorator_name, get_annotation_name
 
 
+def set_parents(root: ast.AST):
+    """Recursively assign `.parent` on each child for easy scope checks."""
+    for child in ast.iter_child_nodes(root):
+        child.parent = root
+        set_parents(child)
+
+
 class DirectoryCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
         self.directories = config.get("directories", [])
@@ -20,29 +27,28 @@ class DirectoryCollector(BaseCollector):
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+        # Mark parents for scope checks
+        set_parents(file_ast)
+
         # Check global exclude patterns
         if any(pattern.search(str(file_path)) for pattern in self.exclude_files):
             return set()
+
         # Check collector-specific exclude pattern
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
-        # Check if file is within one of the specified directories
+        # Check if file is in specified directories
         if not self.is_in_directories(file_path):
             return set()
 
         import_aliases = get_import_aliases(file_ast)
         elements = set()
 
-        # Collect classes if element_type is empty or 'class'
         if not self.element_type or self.element_type == 'class':
             elements.update(self.get_classes(file_ast, file_path, import_aliases))
-
-        # Collect functions if element_type is empty or 'function'
         if not self.element_type or self.element_type == 'function':
             elements.update(self.get_functions(file_ast, file_path, import_aliases))
-
-        # Collect variables if element_type is empty or 'variable'
         if not self.element_type or self.element_type == 'variable':
             elements.update(self.get_variables(file_ast, file_path, import_aliases))
 
@@ -54,8 +60,7 @@ class DirectoryCollector(BaseCollector):
             try:
                 file_path.relative_to(base_path)
             except ValueError:
-                # file_path not under base_path
-                continue
+                continue  # file not under this base_path
             for d in self.directories:
                 dir_path = base_path / d
                 try:
@@ -82,10 +87,10 @@ class DirectoryCollector(BaseCollector):
                 decorators_list = []
                 for d in node.decorator_list:
                     dec_name = get_decorator_name(d)
-                    if dec_name is not None:
+                    if dec_name:
                         decorators_list.append(dec_name)
 
-                # Gather type annotations (class-level attributes)
+                # Gather class-level type annotations (we don't make separate field code elements here)
                 type_annotations: Dict[str, str] = {}
                 for stmt in node.body:
                     if isinstance(stmt, ast.AnnAssign) and isinstance(stmt.target, ast.Name):
@@ -101,7 +106,7 @@ class DirectoryCollector(BaseCollector):
                     column=node.col_offset,
                     inherits=tuple(inherits_list),
                     decorators=tuple(decorators_list),
-                    return_annotation=None,  # Classes do not have return annotations
+                    return_annotation=None,
                     type_annotations=frozenset(type_annotations.items())
                 )
                 classes.add(code_element)
@@ -117,7 +122,7 @@ class DirectoryCollector(BaseCollector):
                 decorators_list = []
                 for d in node.decorator_list:
                     dec_name = get_decorator_name(d)
-                    if dec_name is not None:
+                    if dec_name:
                         decorators_list.append(dec_name)
 
                 # Return annotation
@@ -126,39 +131,27 @@ class DirectoryCollector(BaseCollector):
                 else:
                     return_annotation = None
 
-                # Parameter type annotations
+                # Gather param annotations
                 type_ann_map: Dict[str, str] = {}
-                # Positional args
-                for arg in node.args.args:
-                    if arg.annotation is not None:
+                for arg in node.args.args + node.args.kwonlyargs:
+                    if arg.annotation:
                         ann_name = get_annotation_name(arg.annotation, import_aliases)
-                        if ann_name is not None:
+                        if ann_name:
                             type_ann_map[arg.arg] = ann_name
-                # Kw-only args
-                for arg in node.args.kwonlyargs:
-                    if arg.annotation is not None:
-                        ann_name = get_annotation_name(arg.annotation, import_aliases)
-                        if ann_name is not None:
-                            type_ann_map[arg.arg] = ann_name
-                # Pos-only args
                 if hasattr(node.args, 'posonlyargs'):
                     for arg in node.args.posonlyargs:
-                        if arg.annotation is not None:
+                        if arg.annotation:
                             ann_name = get_annotation_name(arg.annotation, import_aliases)
-                            if ann_name is not None:
+                            if ann_name:
                                 type_ann_map[arg.arg] = ann_name
-                # Vararg and kwarg
                 if node.args.vararg and node.args.vararg.annotation:
                     ann_name = get_annotation_name(node.args.vararg.annotation, import_aliases)
-                    if ann_name is not None:
+                    if ann_name:
                         type_ann_map[node.args.vararg.arg] = ann_name
                 if node.args.kwarg and node.args.kwarg.annotation:
                     ann_name = get_annotation_name(node.args.kwarg.annotation, import_aliases)
-                    if ann_name is not None:
+                    if ann_name:
                         type_ann_map[node.args.kwarg.arg] = ann_name
-
-                # Functions do not inherit
-                inherits_list = []
 
                 code_element = CodeElement(
                     file=file_path,
@@ -166,7 +159,7 @@ class DirectoryCollector(BaseCollector):
                     element_type='function',
                     line=node.lineno,
                     column=node.col_offset,
-                    inherits=tuple(inherits_list),
+                    inherits=(),
                     decorators=tuple(decorators_list),
                     return_annotation=return_annotation,
                     type_annotations=frozenset(type_ann_map.items())
@@ -176,45 +169,65 @@ class DirectoryCollector(BaseCollector):
 
     def get_variables(self, tree: ast.AST, file_path: Path, import_aliases: Dict[str, str]) -> Set[CodeElement]:
         variables = set()
+
         for node in ast.walk(tree):
             if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-                # Variables with annotations
+                var_name = self._build_variable_name(node, node.target.id)
                 ann_name = get_annotation_name(node.annotation, import_aliases)
                 type_ann_map = {node.target.id: ann_name} if ann_name else {}
+
                 code_element = CodeElement(
                     file=file_path,
-                    name=node.target.id,
+                    name=var_name,
                     element_type='variable',
                     line=node.target.lineno,
                     column=node.target.col_offset,
-                    inherits=tuple(),
-                    decorators=tuple(),
+                    inherits=(),
+                    decorators=(),
                     return_annotation=None,
                     type_annotations=frozenset(type_ann_map.items())
                 )
                 variables.add(code_element)
+
             elif isinstance(node, ast.Assign):
-                # Variables without annotations
                 for target in node.targets:
                     if isinstance(target, ast.Name):
+                        var_name = self._build_variable_name(node, target.id)
                         code_element = CodeElement(
                             file=file_path,
-                            name=target.id,
+                            name=var_name,
                             element_type='variable',
                             line=target.lineno,
                             column=target.col_offset,
-                            inherits=tuple(),
-                            decorators=tuple(),
+                            inherits=(),
+                            decorators=(),
                             return_annotation=None,
                             type_annotations=frozenset()
                         )
                         variables.add(code_element)
         return variables
 
+    def _build_variable_name(self, node: ast.AST, field_name: str) -> str:
+        """
+        If the node is inside a class, return 'ClassName.field'.
+        Otherwise, just 'field'.
+        """
+        class_name = self._find_enclosing_class(node)
+        return f"{class_name}.{field_name}" if class_name else field_name
+
+    def _find_enclosing_class(self, node: ast.AST) -> str:
+        parent = getattr(node, 'parent', None)
+        while parent is not None:
+            if isinstance(parent, ast.ClassDef):
+                return parent.name
+            parent = getattr(parent, 'parent', None)
+        return ""
+
     def _get_full_name(self, node: ast.AST) -> str:
+        """Build a dotted name for class/function definitions, e.g. 'MyClass.inner_func'."""
         names = []
         current = node
         while isinstance(current, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
             names.append(current.name)
             current = getattr(current, 'parent', None)
-        return '.'.join(reversed(names))
+        return '.'.join(reversed(names)) if names else ''
