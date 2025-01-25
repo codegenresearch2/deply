@@ -1,6 +1,6 @@
 # Deply - <em>keep your python architecture clean</em>
 
-![Static Badge](https://img.shields.io/badge/stable-v0.5.5-319cd2)
+![Static Badge](https://img.shields.io/badge/stable-v0.5.6-319cd2)
 ![Static Badge](https://img.shields.io/badge/downloads->2_k_month-2282c2)
 ![Static Badge](https://img.shields.io/badge/test-passing-98c525)
 ![Static Badge](https://img.shields.io/badge/coverage-99%25-98c525)
@@ -122,6 +122,7 @@ By default, Deply looks for a configuration file named `deply.yaml` in the curre
     - `--report-format`: Format of the output report. Choices are `text`, `json`, `html`. Default is `text`.
     - `--output`: Output file for the report. If not specified, the report is printed to the console.
     - `--mermaid`: Generates a Mermaid diagram of your layer dependencies, printing it to the console at the end of the analysis. Any edges that represent a violation are shown in red.
+    - `--max-violations`: Maximum number of allowed violations before failing the analysis. Default is 0 (no violations allowed).
 - `-h`, `--help`: Displays help information about Deply and its commands.
 
 #### Examples

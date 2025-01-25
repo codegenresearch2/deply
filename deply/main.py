@@ -35,6 +35,12 @@ def main():
     parser_analyze.add_argument('--output', type=str, help="Output file for the report")
     parser_analyze.add_argument('--mermaid', action='store_true',
                                 help="Generate a Mermaid diagram for layer dependencies (red = violation)")
+    parser_analyze.add_argument(
+        '--max-violations',
+        type=int,
+        default=0,
+        help="Maximum number of allowed violations before failing"
+    )
 
     args = parser.parse_args()
 
@@ -190,10 +196,10 @@ def main():
         print("\n[Mermaid Diagram of Layer Dependencies]\n")
         print(mermaid_diagram)
 
-    if violations:
-        exit(1)
-    else:
+    if len(violations) <= args.max_violations:
         exit(0)
+    else:
+        exit(1)
 
 
 if __name__ == "__main__":
