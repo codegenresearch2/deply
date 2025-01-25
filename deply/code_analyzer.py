@@ -4,6 +4,7 @@ from typing import Dict, Set, Callable
 
 from deply.models.code_element import CodeElement
 from deply.models.dependency import Dependency
+from deply.utils.ast_utils import set_ast_parents
 from deply.utils.dependency_visitor import DependencyVisitor
 
 
@@ -63,6 +64,7 @@ class CodeAnalyzer:
                 source_code = f.read()
             logging.debug(f"File {file_path} read successfully.")
             tree = ast.parse(source_code, filename=str(file_path))
+            set_ast_parents(tree)
             logging.debug(f"AST parsing completed for {file_path}.")
         except (SyntaxError, FileNotFoundError, UnicodeDecodeError) as e:
             logging.warning(f"Failed to parse {file_path}: {e}")

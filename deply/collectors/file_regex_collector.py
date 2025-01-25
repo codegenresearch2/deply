@@ -5,13 +5,8 @@ from typing import List, Set, Dict
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
-from deply.utils.ast_utils import get_import_aliases, get_base_name, get_decorator_name, get_annotation_name
-
-
-def set_parents(root: ast.AST):
-    for child in ast.iter_child_nodes(root):
-        child.parent = root
-        set_parents(child)
+from deply.utils.ast_utils import get_import_aliases, get_base_name, get_decorator_name, get_annotation_name, \
+    set_ast_parents
 
 
 class FileRegexCollector(BaseCollector):
@@ -27,7 +22,7 @@ class FileRegexCollector(BaseCollector):
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         # Mark parent pointers so we can detect if a node is inside a class
-        set_parents(file_ast)
+        set_ast_parents(file_ast)
 
         # Check global exclude patterns
         if any(pattern.search(str(file_path)) for pattern in self.exclude_files):

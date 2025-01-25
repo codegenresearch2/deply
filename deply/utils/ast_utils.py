@@ -78,3 +78,9 @@ def get_annotation_name(annotation_node: ast.AST, import_aliases: Dict[str, str]
 
     # Unknown or complex annotation
     return None
+
+
+def set_ast_parents(root: ast.AST):
+    for child in ast.iter_child_nodes(root):
+        child.parent = root
+        set_ast_parents(child)

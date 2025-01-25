@@ -22,7 +22,8 @@ class DependencyVisitor(ast.NodeVisitor):
         logging.debug(f"DependencyVisitor created for file with {len(code_elements_in_file)} code elements")
 
     def visit_FunctionDef(self, node):
-        self.current_code_element = self.code_elements_in_file.get(node.name)
+        full_name = self._get_definition_full_name(node)
+        self.current_code_element = self.code_elements_in_file.get(full_name)
         if 'decorator' in self.dependency_types and self.current_code_element:
             self._process_decorators(node)
         if 'type_annotation' in self.dependency_types and self.current_code_element:
@@ -35,7 +36,8 @@ class DependencyVisitor(ast.NodeVisitor):
         self.current_code_element = None
 
     def visit_ClassDef(self, node):
-        self.current_code_element = self.code_elements_in_file.get(node.name)
+        full_name = self._get_definition_full_name(node)
+        self.current_code_element = self.code_elements_in_file.get(full_name)
         if 'class_inheritance' in self.dependency_types and self.current_code_element:
             for base in node.bases:
                 base_name = self._get_full_name(base)
@@ -67,33 +69,6 @@ class DependencyVisitor(ast.NodeVisitor):
                         self.dependency_handler(dependency)
         self.generic_visit(node)
         self.current_code_element = None
-
-    def _process_decorators(self, node):
-        for decorator in node.decorator_list:
-            decorator_name = self._get_full_name(decorator)
-            dep_elements = self.name_to_elements.get(decorator_name, set())
-            for dep_element in dep_elements:
-                dependency = Dependency(
-                    code_element=self.current_code_element,
-                    depends_on_code_element=dep_element,
-                    dependency_type='decorator',
-                    line=decorator.lineno,
-                    column=decorator.col_offset
-                )
-                self.dependency_handler(dependency)
-
-    def _process_annotation(self, annotation):
-        annotation_name = self._get_full_name(annotation)
-        dep_elements = self.name_to_elements.get(annotation_name, set())
-        for dep_element in dep_elements:
-            dependency = Dependency(
-                code_element=self.current_code_element,
-                depends_on_code_element=dep_element,
-                dependency_type='type_annotation',
-                line=getattr(annotation, 'lineno', 0),
-                column=getattr(annotation, 'col_offset', 0)
-            )
-            self.dependency_handler(dependency)
 
     def visit_Call(self, node):
         if 'function_call' in self.dependency_types and self.current_code_element:
@@ -159,7 +134,6 @@ class DependencyVisitor(ast.NodeVisitor):
 
     def visit_Name(self, node):
         if 'name_load' in self.dependency_types and self.current_code_element:
-
             if isinstance(node.ctx, ast.Load):
                 name = node.id
                 dep_elements = self.name_to_elements.get(name, set())
@@ -173,6 +147,42 @@ class DependencyVisitor(ast.NodeVisitor):
                     )
                     self.dependency_handler(dependency)
         self.generic_visit(node)
+
+    def _process_decorators(self, node):
+        for decorator in node.decorator_list:
+            decorator_name = self._get_full_name(decorator)
+            dep_elements = self.name_to_elements.get(decorator_name, set())
+            for dep_element in dep_elements:
+                dependency = Dependency(
+                    code_element=self.current_code_element,
+                    depends_on_code_element=dep_element,
+                    dependency_type='decorator',
+                    line=decorator.lineno,
+                    column=decorator.col_offset
+                )
+                self.dependency_handler(dependency)
+
+    def _process_annotation(self, annotation):
+        annotation_name = self._get_full_name(annotation)
+        dep_elements = self.name_to_elements.get(annotation_name, set())
+        for dep_element in dep_elements:
+            dependency = Dependency(
+                code_element=self.current_code_element,
+                depends_on_code_element=dep_element,
+                dependency_type='type_annotation',
+                line=getattr(annotation, 'lineno', 0),
+                column=getattr(annotation, 'col_offset', 0)
+            )
+            self.dependency_handler(dependency)
+
+    def _get_definition_full_name(self, node):
+        parts = [node.name]
+        parent = getattr(node, 'parent', None)
+        while parent is not None:
+            if isinstance(parent, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                parts.append(parent.name)
+            parent = getattr(parent, 'parent', None)
+        return ".".join(reversed(parts))
 
     def _get_full_name(self, node):
         if isinstance(node, ast.Name):
