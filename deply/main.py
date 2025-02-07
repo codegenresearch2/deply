@@ -1,1 +1,1 @@
-Please provide your code snippet so I can generate a new version based on the feedback you received.
+def main():\n    print('Please provide your code snippet so I can generate a new version based on the feedback you received.')\n\nif __name__ == '__main__':\n    main()
