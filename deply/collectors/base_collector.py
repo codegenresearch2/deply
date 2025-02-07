@@ -1,11 +1,1 @@
-import ast
-from abc import ABC, abstractmethod
-from pathlib import Path
-
-from ..models.code_element import CodeElement
-
-
-class BaseCollector(ABC):
-    @abstractmethod
-    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> set[CodeElement]:
-        pass
+from abc import ABC, abstractmethod\\nfrom typing import Set\\nfrom ..models.code_element import CodeElement\\n\\nclass BaseCollector(ABC):\\n    @abstractmethod\\n    def collect(self) -> Set[CodeElement]:\\n        pass
