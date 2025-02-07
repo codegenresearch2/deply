@@ -1,1 +1,1 @@
-from abc import ABC, abstractmethod\nfrom typing import Set\nfrom pathlib import Path\nimport ast\nfrom ..models.code_element import CodeElement\n\nclass BaseCollector(ABC):\n    @abstractmethod\n    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:\n        pass
+import ast\\\\\nfrom pathlib import Path\\\\nfrom typing import Set\\\\\nfrom ..models.code_element import CodeElement\\\\\n\\\\nclass BaseCollector(ABC):\\\\n    @abstractmethod\\\\n    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> set[CodeElement]:\\\\n        pass
