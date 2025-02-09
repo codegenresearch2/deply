@@ -12,8 +12,6 @@ class DirectoryCollector(BaseCollector):
         self.directories = config.get('directories', [])
         self.recursive = config.get('recursive', True)
         self.exclude_files_regex_pattern = config.get('exclude_files_regex', '')
-        self.element_type = config.get('element_type', '')
-
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
         self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
@@ -27,11 +25,11 @@ class DirectoryCollector(BaseCollector):
 
         elements = set()
         for node in ast.walk(file_ast):
-            if isinstance(node, ast.ClassDef) and (not self.element_type or self.element_type == 'class'):
+            if isinstance(node, ast.ClassDef):
                 elements.update(self.get_class_names(node, file_path))
-            elif isinstance(node, ast.FunctionDef) and (not self.element_type or self.element_type == 'function'):
+            elif isinstance(node, ast.FunctionDef):
                 elements.update(self.get_function_names(node, file_path))
-            elif isinstance(node, ast.Assign) and (not self.element_type or self.element_type == 'variable'):
+            elif isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         elements.update(self.get_variable_names(target, file_path))
