@@ -35,13 +35,13 @@ def main():
     layers = {}
     code_element_to_layer = {}
 
-    for layer_config in get(config, 'layers', []):
+    for layer_config in config.get('layers', []):
         layer_name = layer_config['name']
-        collectors = get(layer_config, 'collectors', [])
+        collectors = layer_config.get('collectors', [])
         collected = set()
 
         for collector_config in collectors:
-            collector = CollectorFactory.create(collector_config, get(config, 'paths', []), get(config, 'exclude_files', []))
+            collector = CollectorFactory.create(collector_config, config.get('paths', []), config.get('exclude_files', []))
             collected.update(collector.collect())
 
         layer = Layer(
@@ -62,7 +62,7 @@ def main():
         if source_layer_name and source_layer_name in layers:
             layers[source_layer_name].dependencies.add(dependency)
 
-    violations = DependencyRule(get(config, 'ruleset', {})).check(layers)
+    violations = DependencyRule(config.get('ruleset', {})).check(layers)
 
     report = ReportGenerator(violations).generate(format=args.report_format)
 
