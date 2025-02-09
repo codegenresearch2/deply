@@ -12,13 +12,10 @@ class BaseCollector(ABC):
 
 
 class ClassInheritsCollector(BaseCollector):
-    def __init__(self, base_class: str, exclude_files_regex: str = ''):
+    def __init__(self, base_class: str):
         self.base_class = base_class
-        self.exclude_regex = re.compile(exclude_files_regex) if exclude_files_regex else None
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> set[CodeElement]:
-        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
-            return set()
         classes = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
