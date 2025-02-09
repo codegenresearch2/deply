@@ -129,7 +129,7 @@ class TestCollectors(unittest.TestCase):
             ],
             'must_not': [
                 {'type': 'file_regex', 'regex': '.*/base_service.py'},
-                {'type': 'file_regex', 'regex': '.*/excluded_folder_name/.*'}
+                {'type': 'file_regex', 'regex': '.*/excluded_folder_name/.*'},
             ]
         }
         paths = [str(self.test_project_dir)]
