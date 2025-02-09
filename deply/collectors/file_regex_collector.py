@@ -1,1 +1,1 @@
-def test_function():\n    assert True
+def short_function():\n    return 'Short and concise'
