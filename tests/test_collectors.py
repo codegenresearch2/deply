@@ -11,6 +11,7 @@ from deply.collectors.decorator_usage_collector import DecoratorUsageCollector
 from deply.collectors.directory_collector import DirectoryCollector
 from deply.main import main
 
+
 class TestCollectors(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
@@ -128,4 +129,12 @@ class TestCollectors(unittest.TestCase):
             ],
             'must_not': [
                 {'type': 'file_regex', 'regex': '.*/base_service.py'},
-                {'type': 'file_regex', 'regex': '.*/excluded_folder_name/.*'},
+                {'type': 'file_regex', 'regex': '.*/excluded_folder_name/.*'},]
+        }
+        paths = [str(self.test_project_dir)]
+        exclude_files = []
+        collector = BoolCollector(collector_config, paths, exclude_files)
+        collected_elements = collector.collect()
+        collected_class_names = {element.name for element in collected_elements}
+        expected_classes = {'UserService'}
+        self.assertEqual(collected_class_names, expected_classes)
