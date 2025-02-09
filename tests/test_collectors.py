@@ -151,7 +151,11 @@ class TestCollectors(unittest.TestCase):
     def test_directory_collector_with_rules(self):
         user_controller_py = self.test_project_dir / 'controllers' / 'user_controller.py'
         user_controller_py.write_text(
-            'from ..models.user_model import UserModel\n'\n            'class UserController:\n'\n            '    def __init__(self):\n'\n            '        self.model = UserModel()'\n        )
+            'from ..models.user_model import UserModel\n'\
+            'class UserController:\n'\
+            '    def __init__(self):\n'\
+            '        self.model = UserModel()'\
+        )
         config_yaml = Path(self.test_dir) / 'config_directory_collector_rules.yaml'
         config_data = {
             'deply': {
