@@ -2,6 +2,8 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+import ast
+import re
 
 from deply import __version__
 from deply.rules import RuleFactory
@@ -12,6 +14,7 @@ from .models.code_element import CodeElement
 from .models.layer import Layer
 from .models.violation import Violation
 from .reports.report_generator import ReportGenerator
+
 
 def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
