@@ -84,16 +84,8 @@ class TestCodeAnalyzer(unittest.TestCase):
         try:
             with captured_output() as (out, err):
                 try:
-                    sys.argv = ['main.py', '--config', str(self.config_yaml)]
-                    main()
-                except SystemExit as e:
-                    exit_code = e.code
-            output = out.getvalue()
-            self.assertEqual(exit_code, 1)
-            self.assertIn('Layer \'views\' is not allowed to depend on layer \'models\'', output)
-        finally:
+                    sys.argv = ['main.py', '--config', str(self.config_yaml)]\n                    main()\n                except SystemExit as e:\n                    exit_code = e.code\n            output = out.getvalue()\n            self.assertEqual(exit_code, 1)\n            self.assertIn('Layer \'views\' is not allowed to depend on layer \'models\'', output)\n        finally:
             os.chdir(old_cwd)
 
 
-if __name__ == '__main__':
-    unittest.main()
+if __name__ == '__main__':\n    unittest.main()
