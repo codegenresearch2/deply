@@ -2,8 +2,6 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-import ast
-import re
 
 from deply import __version__
 from deply.rules import RuleFactory
@@ -144,16 +142,14 @@ def main():
         output_path.write_text(report)
         logging.info(f'Report written to {output_path}')
     else:
-        print('\n')
-        print(report)
+        print('\n')\n        print(report)
 
     # Exit with appropriate status
     if violations:
         print(f'\nTotal violation(s): {len(violations)}')
         exit(1)
     else:
-        print('\nNo violations detected.')
-        exit(0)
+        print('\nNo violations detected.')\n        exit(0)
 
 
 if __name__ == '__main__':
