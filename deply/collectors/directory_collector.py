@@ -14,48 +14,18 @@ class DirectoryCollector(BaseCollector):
         self.exclude_files_regex_pattern = config.get('exclude_files_regex', '')
         self.element_type = config.get('element_type', '')
 
-        self.exclude_regex = re.compile(self.exclude_files_regex_pattern)
-        if not self.exclude_regex and self.exclude_files_regex_pattern:
-            self.exclude_regex = None
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def collect(self) -> Set[CodeElement]:
-        collected_elements = set()
-        all_files = self.get_all_files()
+    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+        if self.is_excluded(file_path):
+            return set()
 
-        for file_path, base_path in all_files:
-            elements = self.get_elements_in_file(file_path)
-            collected_elements.update(elements)
+        if not self.is_in_directories(file_path):
+            return set()
 
-        return collected_elements
-
-    def get_all_files(self) -> List[Tuple[Path, Path]]:
-        all_files = []
-
-        for base_path in self.paths:
-            if not base_path.exists():
-                continue
-
-            for directory in self.directories:
-                dir_path = base_path / directory
-                if dir_path.exists() and dir_path.is_dir():
-                    if self.recursive:
-                        files = list(dir_path.rglob('*.py'))
-                    else:
-                        files = list(dir_path.glob('*.py'))
-
-                    files = [f for f in files if not any(pattern.search(str(f.relative_to(base_path))) for pattern in self.exclude_files)]
-
-                    if self.exclude_regex:
-                        files = [f for f in files if not self.exclude_regex.search(str(f.relative_to(base_path)))]
-
-                    all_files.extend([(f, base_path) for f in files])
-
-        return all_files
-
-    def get_elements_in_file(self, file_path: Path) -> Set[CodeElement]:
         elements = set()
         tree = self.parse_file(file_path)
         if tree is None:
@@ -71,6 +41,16 @@ class DirectoryCollector(BaseCollector):
             elements.update(self.get_variable_names(tree, file_path))
 
         return elements
+
+    def is_excluded(self, file_path: Path) -> bool:
+        relative_path = str(file_path.relative_to(self.paths[0]))
+        return any(pattern.search(relative_path) for pattern in self.exclude_files)
+
+    def is_in_directories(self, file_path: Path) -> bool:
+        for directory in self.directories:
+            if file_path.is_relative_to(directory):
+                return True
+        return False
 
     def parse_file(self, file_path: Path):
         try:
