@@ -72,7 +72,11 @@ def main():
             collector_type = collector_config.get('type', 'unknown')
             logging.debug(f"Using collector: {collector_type} for layer: {layer_name}")
             collector = CollectorFactory.create(collector_config, config['paths'], config['exclude_files'])
-            collected_elements.update(collector.collect())
+            try:
+                collected_elements.update(collector.collect())
+            except AttributeError as e:
+                logging.error(f"Collector {collector_type} does not have a collect method: {e}")
+                continue
             logging.debug(f"Collected {len(collected_elements)} elements for collector {collector_type}")
 
         # Initialize Layer with collected code elements
