@@ -2,7 +2,6 @@ from abc import ABC, abstractmethod
 from typing import Set
 from pathlib import Path
 import ast
-import re
 
 from ..models.code_element import CodeElement
 
