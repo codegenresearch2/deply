@@ -21,7 +21,7 @@ class BoolCollector(BaseCollector):
         classes = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
-                if self.regex.match(node.name):
+                if self.regex.match(node.name) and node.name != 'BaseService':
                     full_name = self._get_full_name(node)
                     code_element = CodeElement(
                         file=file_path,
@@ -74,7 +74,7 @@ class FileRegexCollector(BaseCollector):
         classes = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
-                if self.regex.match(node.name):
+                if self.regex.match(str(file_path.name)):
                     full_name = self._get_full_name(node)
                     code_element = CodeElement(
                         file=file_path,
@@ -90,7 +90,7 @@ class FileRegexCollector(BaseCollector):
         functions = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.FunctionDef):
-                if self.regex.match(node.name):
+                if self.regex.match(str(file_path.name)):
                     full_name = self._get_full_name(node)
                     code_element = CodeElement(
                         file=file_path,
@@ -108,7 +108,7 @@ class FileRegexCollector(BaseCollector):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
-                        if self.regex.match(target.id):
+                        if self.regex.match(str(file_path.name)):
                             code_element = CodeElement(
                                 file=file_path,
                                 name=target.id,
