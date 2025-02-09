@@ -85,7 +85,7 @@ def main():
             dependencies=set()  # No longer needed but kept for potential future use
         )
         layers[layer_name] = layer
-        logging.info(f'Layer "'layer_name"' collected {len(collected_elements)} code elements.')
+        logging.info(f'Layer "{layer_name}" collected {len(collected_elements)} code elements.')
 
         # Map each code element to its layer
         for element in collected_elements:
