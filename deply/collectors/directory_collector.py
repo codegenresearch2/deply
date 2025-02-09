@@ -14,11 +14,12 @@ class DirectoryCollector(BaseCollector):
         self.exclude_files_regex_pattern = config.get('exclude_files_regex', '')
         self.element_type = config.get('element_type', '')
 
-        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern)
+        if self.exclude_regex else None
         self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.is_excluded(file_path):
             return set()
 
@@ -26,12 +27,12 @@ class DirectoryCollector(BaseCollector):
             return set()
 
         elements = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
+        for node in ast.walk(file_ast):
+            if isinstance(node, ast.ClassDef) and (not self.element_type or self.element_type == 'class'):
                 elements.update(self.get_class_names(node, file_path))
-            elif isinstance(node, ast.FunctionDef):
+            elif isinstance(node, ast.FunctionDef) and (not self.element_type or self.element_type == 'function'):
                 elements.update(self.get_function_names(node, file_path))
-            elif isinstance(node, ast.Assign):
+            elif isinstance(node, ast.Assign) and (not self.element_type or self.element_type == 'variable'):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         elements.update(self.get_variable_names(target, file_path))
@@ -39,43 +40,40 @@ class DirectoryCollector(BaseCollector):
 
     def get_class_names(self, node: ast.ClassDef, file_path: Path) -> Set[CodeElement]:
         classes = set()
-        if not self.element_type or self.element_type == 'class':
-            full_name = self._get_full_name(node)
-            code_element = CodeElement(
-                file=file_path,
-                name=full_name,
-                element_type='class',
-                line=node.lineno,
-                column=node.col_offset
-            )
-            classes.add(code_element)
+        full_name = self._get_full_name(node)
+        code_element = CodeElement(
+            file=file_path,
+            name=full_name,
+            element_type='class',
+            line=node.lineno,
+            column=node.col_offset
+        )
+        classes.add(code_element)
         return classes
 
     def get_function_names(self, node: ast.FunctionDef, file_path: Path) -> Set[CodeElement]:
         functions = set()
-        if not self.element_type or self.element_type == 'function':
-            full_name = self._get_full_name(node)
-            code_element = CodeElement(
-                file=file_path,
-                name=full_name,
-                element_type='function',
-                line=node.lineno,
-                column=node.col_offset
-            )
-            functions.add(code_element)
+        full_name = self._get_full_name(node)
+        code_element = CodeElement(
+            file=file_path,
+            name=full_name,
+            element_type='function',
+            line=node.lineno,
+            column=node.col_offset
+        )
+        functions.add(code_element)
         return functions
 
     def get_variable_names(self, node: ast.Name, file_path: Path) -> Set[CodeElement]:
         variables = set()
-        if not self.element_type or self.element_type == 'variable':
-            code_element = CodeElement(
-                file=file_path,
-                name=node.id,
-                element_type='variable',
-                line=node.lineno,
-                column=node.col_offset
-            )
-            variables.add(code_element)
+        code_element = CodeElement(
+            file=file_path,
+            name=node.id,
+            element_type='variable',
+            line=node.lineno,
+            column=node.col_offset
+        )
+        variables.add(code_element)
         return variables
 
     def is_excluded(self, file_path: Path) -> bool:
