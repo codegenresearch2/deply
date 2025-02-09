@@ -38,20 +38,22 @@ def main():
     for layer_config in config.get('layers', []):
         layer_name = layer_config['name']
         collectors = layer_config.get('collectors', [])
-        collected = set()
+        collected_elements = set()
 
         for collector_config in collectors:
             collector = CollectorFactory.create(collector_config, config.get('paths', []), config.get('exclude_files', []))
-            collected.update(collector.collect())
+            collected_elements.update(collector.collect())
 
+        # Initialize Layer with collected code elements
+        # Comment explaining the purpose of initializing the Layer
         layer = Layer(
             name=layer_name,
-            code_elements=collected,
+            code_elements=collected_elements,
             dependencies=set()
         )
         layers[layer_name] = layer
 
-        for element in collected:
+        for element in collected_elements:
             code_element_to_layer[element] = layer_name
 
     # Analyze code to find dependencies
