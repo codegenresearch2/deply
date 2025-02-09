@@ -15,11 +15,10 @@ class DirectoryCollector(BaseCollector):
         self.element_type = config.get('element_type', '')
 
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
-
-        self.paths = [Path(p) for p in paths]
+        self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.is_excluded(file_path):
             return set()
 
@@ -27,41 +26,7 @@ class DirectoryCollector(BaseCollector):
             return set()
 
         elements = set()
-        tree = self.parse_file(file_path)
-        if tree is None:
-            return elements
-
-        if not self.element_type or self.element_type == 'class':
-            elements.update(self.get_class_names(tree, file_path))
-
-        if not self.element_type or self.element_type == 'function':
-            elements.update(self.get_function_names(tree, file_path))
-
-        if not self.element_type or self.element_type == 'variable':
-            elements.update(self.get_variable_names(tree, file_path))
-
-        return elements
-
-    def is_excluded(self, file_path: Path) -> bool:
-        relative_path = str(file_path.relative_to(self.paths[0]))
-        return any(pattern.search(relative_path) for pattern in self.exclude_files)
-
-    def is_in_directories(self, file_path: Path) -> bool:
-        for directory in self.directories:
-            if file_path.is_relative_to(directory):
-                return True
-        return False
-
-    def parse_file(self, file_path: Path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return ast.parse(f.read(), filename=str(file_path))
-        except (SyntaxError, UnicodeDecodeError):
-            return None
-
-    def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
-        classes = set()
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
                 full_name = self._get_full_name(node)
                 code_element = CodeElement(
@@ -71,13 +36,8 @@ class DirectoryCollector(BaseCollector):
                     line=node.lineno,
                     column=node.col_offset
                 )
-                classes.add(code_element)
-        return classes
-
-    def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
-        functions = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
+                elements.add(code_element)
+            elif isinstance(node, ast.FunctionDef):
                 full_name = self._get_full_name(node)
                 code_element = CodeElement(
                     file=file_path,
@@ -86,13 +46,8 @@ class DirectoryCollector(BaseCollector):
                     line=node.lineno,
                     column=node.col_offset
                 )
-                functions.add(code_element)
-        return functions
-
-    def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
-        variables = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Assign):
+                elements.add(code_element)
+            elif isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
                         code_element = CodeElement(
@@ -102,8 +57,18 @@ class DirectoryCollector(BaseCollector):
                             line=target.lineno,
                             column=target.col_offset
                         )
-                        variables.add(code_element)
-        return variables
+                        elements.add(code_element)
+        return elements
+
+    def is_excluded(self, file_path: Path) -> bool:
+        relative_path = str(file_path.relative_to(self.base_paths[0]))
+        return any(pattern.search(relative_path) for pattern in self.exclude_files)
+
+    def is_in_directories(self, file_path: Path) -> bool:
+        for directory in self.directories:
+            if file_path.is_relative_to(directory):
+                return True
+        return False
 
     def _get_full_name(self, node):
         names = []
