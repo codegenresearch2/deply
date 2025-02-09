@@ -14,7 +14,12 @@ class DirectoryCollector(BaseCollector):
         self.exclude_files_regex_pattern = config.get('exclude_files_regex', '')
         self.element_type = config.get('element_type', '')
 
-        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern)
+        if self.exclude_regex:
+            self.exclude_regex = re.compile(self.exclude_files_regex_pattern)
+        else:
+            self.exclude_regex = None
+
         self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
@@ -28,37 +33,55 @@ class DirectoryCollector(BaseCollector):
         elements = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
-                full_name = self._get_full_name(node)
-                code_element = CodeElement(
-                    file=file_path,
-                    name=full_name,
-                    element_type='class',
-                    line=node.lineno,
-                    column=node.col_offset
-                )
-                elements.add(code_element)
+                elements.update(self.get_class_names(node, file_path))
             elif isinstance(node, ast.FunctionDef):
-                full_name = self._get_full_name(node)
-                code_element = CodeElement(
-                    file=file_path,
-                    name=full_name,
-                    element_type='function',
-                    line=node.lineno,
-                    column=node.col_offset
-                )
-                elements.add(code_element)
+                elements.update(self.get_function_names(node, file_path))
             elif isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
-                        code_element = CodeElement(
-                            file=file_path,
-                            name=target.id,
-                            element_type='variable',
-                            line=target.lineno,
-                            column=target.col_offset
-                        )
-                        elements.add(code_element)
+                        elements.update(self.get_variable_names(target, file_path))
         return elements
+
+    def get_class_names(self, node: ast.ClassDef, file_path: Path) -> Set[CodeElement]:
+        classes = set()
+        if self.element_type == 'class' or not self.element_type:
+            full_name = self._get_full_name(node)
+            code_element = CodeElement(
+                file=file_path,
+                name=full_name,
+                element_type='class',
+                line=node.lineno,
+                column=node.col_offset
+            )
+            classes.add(code_element)
+        return classes
+
+    def get_function_names(self, node: ast.FunctionDef, file_path: Path) -> Set[CodeElement]:
+        functions = set()
+        if self.element_type == 'function' or not self.element_type:
+            full_name = self._get_full_name(node)
+            code_element = CodeElement(
+                file=file_path,
+                name=full_name,
+                element_type='function',
+                line=node.lineno,
+                column=node.col_offset
+            )
+            functions.add(code_element)
+        return functions
+
+    def get_variable_names(self, node: ast.Name, file_path: Path) -> Set[CodeElement]:
+        variables = set()
+        if self.element_type == 'variable' or not self.element_type:
+            code_element = CodeElement(
+                file=file_path,
+                name=node.id,
+                element_type='variable',
+                line=node.lineno,
+                column=node.col_offset
+            )
+            variables.add(code_element)
+        return variables
 
     def is_excluded(self, file_path: Path) -> bool:
         relative_path = str(file_path.relative_to(self.base_paths[0]))
