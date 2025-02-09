@@ -14,13 +14,12 @@ class DirectoryCollector(BaseCollector):
         self.exclude_files_regex_pattern = config.get('exclude_files_regex', '')
         self.element_type = config.get('element_type', '')
 
-        self.exclude_regex = re.compile(self.exclude_files_regex_pattern)
-        if self.exclude_regex else None
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
         self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
-        if self.is_excluded(file_path):
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
         if not self.is_in_directories(file_path):
@@ -76,15 +75,12 @@ class DirectoryCollector(BaseCollector):
         variables.add(code_element)
         return variables
 
-    def is_excluded(self, file_path: Path) -> bool:
-        relative_path = str(file_path.relative_to(self.base_paths[0]))
-        return any(pattern.search(relative_path) for pattern in self.exclude_files)
-
     def is_in_directories(self, file_path: Path) -> bool:
-        for directory in self.directories:
-            if file_path.is_relative_to(directory):
-                return True
-        return False
+        try:
+            relative_path = str(file_path.relative_to(self.base_paths[0]))
+            return any(directory in relative_path for directory in self.directories)
+        except ValueError:
+            return False
 
     def _get_full_name(self, node):
         names = []
