@@ -17,7 +17,7 @@ def main():
 
     # Add sub-command for 'analyze'
     analyze_parser = subparsers.add_parser('analyze', help='Analyze command help')
-    analyze_parser.add_argument('--config', required=True, type=str, help='Path to the configuration YAML file')
+    analyze_parser.add_argument('--config', required=True, type=str, help='Path to the configuration YAML file', default='deply.yaml')
     analyze_parser.add_argument('--report-format', type=str, choices=['text', 'json', 'html'], default='text', help='Format of the output report')
     analyze_parser.add_argument('--output', type=str, help='Output file for the report')
 
