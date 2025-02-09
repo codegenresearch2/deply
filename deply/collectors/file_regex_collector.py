@@ -17,62 +17,15 @@ class FileRegexCollector(BaseCollector):
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
-        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
-            return set()
-
-        elements = set()
-        for node in ast.walk(file_ast):
-            if isinstance(node, ast.ClassDef) and self.element_type in ['class', None]:
-                elements.update(self._collect_class_elements(node, file_path))
-            elif isinstance(node, ast.FunctionDef) and self.element_type in ['function', None]:
-                elements.update(self._collect_function_elements(node, file_path))
-            elif isinstance(node, ast.Assign) and self.element_type in ['variable', None]:
-                elements.update(self._collect_variable_elements(node, file_path))
-        return elements
-
-    def _collect_class_elements(self, node: ast.ClassDef, file_path: Path) -> Set[CodeElement]:
-        classes = set()
-        if self.regex.match(node.name):
-            full_name = self._get_full_name(node)
-            code_element = CodeElement(
-                file=file_path,
-                name=full_name,
-                element_type='class',
-                line=node.lineno,
-                column=node.col_offset
-            )
-            classes.add(code_element)
-        return classes
-
-    def _collect_function_elements(self, node: ast.FunctionDef, file_path: Path) -> Set[CodeElement]:
-        functions = set()
-        if self.regex.match(node.name):
-            full_name = self._get_full_name(node)
-            code_element = CodeElement(
-                file=file_path,
-                name=full_name,
-                element_type='function',
-                line=node.lineno,
-                column=node.col_offset
-            )
-            functions.add(code_element)
-        return functions
-
-    def _collect_variable_elements(self, node: ast.Assign, file_path: Path) -> Set[CodeElement]:
-        variables = set()
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                if self.regex.match(target.id):
-                    code_element = CodeElement(
-                        file=file_path,
-                        name=target.id,
-                        element_type='variable',
-                        line=target.lineno,
-                        column=target.col_offset
-                    )
-                    variables.add(code_element)
-        return variables
+    def collect(self) -> Set[CodeElement]:
+        all_files = self.get_all_files()
+        collected_elements = set()
+        for file_path, base_path in all_files:
+            relative_path = str(file_path.relative_to(base_path))
+            if self.regex.match(relative_path):
+                elements = self.get_elements_in_file(file_path)
+                collected_elements.update(elements)
+        return collected_elements
 
     def get_all_files(self) -> List[Tuple[Path, Path]]:
         all_files = []
@@ -85,6 +38,42 @@ class FileRegexCollector(BaseCollector):
                 files = [f for f in files if not self.exclude_regex.match(str(f.relative_to(base_path)))]
             all_files.extend([(f, base_path) for f in files])
         return all_files
+
+    def get_elements_in_file(self, file_path: Path) -> Set[CodeElement]:
+        elements = set()
+        tree = self.parse_file(file_path)
+        if tree is None:
+            return elements
+        if not self.element_type or self.element_type == 'class':
+            elements.update(self._collect_elements(tree, file_path, ast.ClassDef))
+        if not self.element_type or self.element_type == 'function':
+            elements.update(self._collect_elements(tree, file_path, ast.FunctionDef))
+        if not self.element_type or self.element_type == 'variable':
+            elements.update(self._collect_elements(tree, file_path, ast.Assign))
+        return elements
+
+    def _collect_elements(self, tree, file_path: Path, element_type):
+        elements = set()
+        for node in ast.walk(tree):
+            if isinstance(node, element_type):
+                if self.regex.match(node.name):
+                    full_name = self._get_full_name(node)
+                    code_element = CodeElement(
+                        file=file_path,
+                        name=full_name,
+                        element_type=element_type.__name__.lower(),
+                        line=node.lineno,
+                        column=node.col_offset
+                    )
+                    elements.add(code_element)
+        return elements
+
+    def parse_file(self, file_path: Path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return ast.parse(f.read(), filename=str(file_path))
+        except (SyntaxError, UnicodeDecodeError):
+            return None
 
     def _get_full_name(self, node):
         names = []
