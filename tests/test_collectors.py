@@ -1,1 +1,1 @@
-This is a corrected version of the previous code snippet. The first line has been removed to fix the `SyntaxError`."}
+import shutil"
