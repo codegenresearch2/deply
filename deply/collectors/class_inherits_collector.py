@@ -1,1 +1,1 @@
-import ast", "import re"]", "from pathlib import Path"]", "from typing import List, Set"]", "from deply.collectors import BaseCollector"]", "from deply.models.code_element import CodeElement"]", "from deply.utils.ast_utils import get_import_aliases, get_base_name"]""
+import ast", "import re"]", "from pathlib import Path"]", "from typing import List, Set"]", "from deply.collectors import BaseCollector"]", "from deply.models.code_element import CodeElement"]"
