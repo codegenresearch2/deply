@@ -31,15 +31,15 @@ class TestCodeAnalyzer(unittest.TestCase):
         models_dir = self.test_project_dir / 'models'
         models_dir.mkdir()
         base_model_py = models_dir / 'base_model.py'
-        base_model_py.write_text('class BaseModel:\n    pass\n')
+        base_model_py.write_text('class BaseModel:\n    pass\n')        
 
         my_model_py = models_dir / 'my_model.py'
-        my_model_py.write_text('from .base_model import BaseModel\n\nclass MyModel(BaseModel):\n    pass\n')
+        my_model_py.write_text('from .base_model import BaseModel\n\nclass MyModel(BaseModel):\n    pass\n')        
 
         views_dir = self.test_project_dir / 'views'
         views_dir.mkdir()
         views_py = views_dir / 'views.py'
-        views_py.write_text('from ..models.my_model import MyModel\n\ndef my_view():\n    model = MyModel()\n')
+        views_py.write_text('from ..models.my_model import MyModel\n\ndef my_view():\n    model = MyModel()\n')        
 
         self.config_yaml = Path(self.test_dir) / 'config.yaml'
         config_data = {
@@ -84,8 +84,19 @@ class TestCodeAnalyzer(unittest.TestCase):
         try:
             with captured_output() as (out, err):
                 try:
-                    sys.argv = ['main.py', '--config', str(self.config_yaml)]\n                    main()\n                except SystemExit as e:\n                    exit_code = e.code\n            output = out.getvalue()\n            self.assertEqual(exit_code, 1)\n            self.assertIn('Layer \'views\' is not allowed to depend on layer \'models\'', output)\n        finally:
+                    sys.argv = ['main.py', '--config', str(self.config_yaml)]
+                    if 'analyze' in sys.argv:
+                        main()
+                    else:
+                        raise ValueError('Command not recognized.')
+                except SystemExit as e:
+                    exit_code = e.code
+            output = out.getvalue().strip()
+            self.assertEqual(exit_code, 1)
+            self.assertIn('Layer \'views\' is not allowed to depend on layer \'models\'', output)
+        finally:
             os.chdir(old_cwd)
 
 
-if __name__ == '__main__':\n    unittest.main()
+if __name__ == '__main__':
+    unittest.main()
