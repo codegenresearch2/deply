@@ -28,18 +28,21 @@ class TestCodeAnalyzer(unittest.TestCase):
         self.test_project_dir = Path(self.test_dir) / 'test_project'
         self.test_project_dir.mkdir()
 
+        # Create base_model.py
         models_dir = self.test_project_dir / 'models'
         models_dir.mkdir()
         base_model_py = models_dir / 'base_model.py'
-        base_model_py.write_text('class BaseModel:\n    pass\n')        
+        base_model_py.write_text('class BaseModel:\n    pass\n')
 
+        # Create my_model.py
         my_model_py = models_dir / 'my_model.py'
-        my_model_py.write_text('from .base_model import BaseModel\n\nclass MyModel(BaseModel):\n    pass\n')        
+        my_model_py.write_text('from .base_model import BaseModel\n\nclass MyModel(BaseModel):\n    pass\n')
 
+        # Create views.py
         views_dir = self.test_project_dir / 'views'
         views_dir.mkdir()
         views_py = views_dir / 'views.py'
-        views_py.write_text('from ..models.my_model import MyModel\n\ndef my_view():\n    model = MyModel()\n')        
+        views_py.write_text('from ..models.my_model import MyModel\n\ndef my_view():\n    model = MyModel()\n')
 
         self.config_yaml = Path(self.test_dir) / 'config.yaml'
         config_data = {
@@ -84,11 +87,8 @@ class TestCodeAnalyzer(unittest.TestCase):
         try:
             with captured_output() as (out, err):
                 try:
-                    sys.argv = ['main.py', '--config', str(self.config_yaml)]
-                    if 'analyze' in sys.argv:
-                        main()
-                    else:
-                        raise ValueError('Command not recognized.')
+                    sys.argv = ['main.py', '--config', str(self.config_yaml), 'analyze']
+                    main()
                 except SystemExit as e:
                     exit_code = e.code
             output = out.getvalue().strip()
