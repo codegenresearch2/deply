@@ -20,15 +20,14 @@ class ClassInheritsCollector(BaseCollector):
         self.base_class = config.get("base_class", "")
         self.exclude_regex = re.compile(config.get("exclude_files_regex", "")) if config.get("exclude_files_regex", "") else None
 
-    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> set[CodeElement]:
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
-        import_aliases = get_import_aliases(file_ast)
         classes = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
                 for base in node.bases:
-                    base_name = get_base_name(base, import_aliases)
+                    base_name = get_base_name(base)
                     if base_name == self.base_class or base_name.endswith(f".{self.base_class}"):
                         full_name = self._get_full_name(node)
                         code_element = CodeElement(file=file_path, name=full_name, element_type="class", line=node.lineno, column=node.col_offset)
