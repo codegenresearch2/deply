@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
@@ -18,7 +18,7 @@ class DirectoryCollector(BaseCollector):
         self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.is_excluded(file_path):
             return set()
 
@@ -26,7 +26,7 @@ class DirectoryCollector(BaseCollector):
             return set()
 
         elements = set()
-        for node in ast.walk(file_ast):
+        for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 elements.update(self.get_class_names(node, file_path))
             elif isinstance(node, ast.FunctionDef):
