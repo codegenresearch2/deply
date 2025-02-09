@@ -14,12 +14,7 @@ class DirectoryCollector(BaseCollector):
         self.exclude_files_regex_pattern = config.get('exclude_files_regex', '')
         self.element_type = config.get('element_type', '')
 
-        self.exclude_regex = re.compile(self.exclude_files_regex_pattern)
-        if self.exclude_regex:
-            self.exclude_regex = re.compile(self.exclude_files_regex_pattern)
-        else:
-            self.exclude_regex = None
-
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
         self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
@@ -44,7 +39,7 @@ class DirectoryCollector(BaseCollector):
 
     def get_class_names(self, node: ast.ClassDef, file_path: Path) -> Set[CodeElement]:
         classes = set()
-        if self.element_type == 'class' or not self.element_type:
+        if not self.element_type or self.element_type == 'class':
             full_name = self._get_full_name(node)
             code_element = CodeElement(
                 file=file_path,
@@ -58,7 +53,7 @@ class DirectoryCollector(BaseCollector):
 
     def get_function_names(self, node: ast.FunctionDef, file_path: Path) -> Set[CodeElement]:
         functions = set()
-        if self.element_type == 'function' or not self.element_type:
+        if not self.element_type or self.element_type == 'function':
             full_name = self._get_full_name(node)
             code_element = CodeElement(
                 file=file_path,
@@ -72,7 +67,7 @@ class DirectoryCollector(BaseCollector):
 
     def get_variable_names(self, node: ast.Name, file_path: Path) -> Set[CodeElement]:
         variables = set()
-        if self.element_type == 'variable' or not self.element_type:
+        if not self.element_type or self.element_type == 'variable':
             code_element = CodeElement(
                 file=file_path,
                 name=node.id,
