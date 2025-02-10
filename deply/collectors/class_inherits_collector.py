@@ -15,25 +15,6 @@ class ClassInheritsCollector(BaseCollector):
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def collect(self) -> Set[CodeElement]:
-        collected_elements = set()
-        for base_path in self.paths:
-            if base_path.exists():
-                for file_path in base_path.rglob("*.py"):
-                    if not any(pattern.search(str(file_path.relative_to(base_path))) for pattern in self.exclude_files) and not (self.exclude_regex and self.exclude_regex.search(str(file_path.relative_to(base_path)))):
-                        tree = self.parse_file(file_path)
-                        if tree is not None:
-                            classes = self.match_in_file(tree, file_path)
-                            collected_elements.update(classes)
-        return collected_elements
-
-    def parse_file(self, file_path: Path):
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                return ast.parse(f.read(), filename=str(file_path))
-        except (SyntaxError, UnicodeDecodeError):
-            return None
-
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
@@ -44,9 +25,9 @@ class ClassInheritsCollector(BaseCollector):
             if isinstance(node, ast.ClassDef):
                 for base in node.bases:
                     base_name = get_base_name(base, import_aliases)
-                    if base_name == self.base_class or base_name.endswith(f".{self.base_class}"):
+                    if base_name == self.base_class or base_name.endswith(f'.{self.base_class}'):
                         full_name = self._get_full_name(node)
-                        code_element = CodeElement(file=file_path, name=full_name, element_type="class", line=node.lineno, column=node.col_offset)
+                        code_element = CodeElement(file=file_path, name=full_name, element_type='class', line=node.lineno, column=node.col_offset)
                         classes.add(code_element)
         return classes
 
@@ -55,5 +36,10 @@ class ClassInheritsCollector(BaseCollector):
         current = node
         while isinstance(current, (ast.ClassDef, ast.FunctionDef)):
             names.append(current.name)
-            current = getattr(current, "parent", None)
-        return ".".join(reversed(names))
+            current = getattr(current, 'parent', None)
+        return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
