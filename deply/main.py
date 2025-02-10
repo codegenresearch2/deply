@@ -1,7 +1,5 @@
 import argparse
-import ast
 import logging
-import re
 import sys
 from pathlib import Path
 
@@ -57,70 +55,40 @@ def main():
     logging.info(f"Using configuration file: {config_path}")
     config = ConfigParser(config_path).parse()
 
-    # Collect paths and excluded files
-    paths = [Path(p) for p in config["paths"]]
-    exclude_files = [re.compile(pattern) for pattern in config["exclude_files"]]
-
-    # Prepare layer configuration
-    layers_config = config["layers"]
-    ruleset = config["ruleset"]
-
-    # Map layer collectors
-    logging.info("Mapping layer collectors...")
-    layer_collectors = []
-    for layer_config in layers_config:
-        layer_name = layer_config["name"]
-        collector_configs = layer_config.get("collectors", [])
-        for collector_config in collector_configs:
-            collector = CollectorFactory.create(
-                config=collector_config,
-                paths=[str(p) for p in paths],
-                exclude_files=[p.pattern for p in exclude_files])
-            layer_collectors.append((layer_name, collector))
-
-    # Collect all files
-    logging.info("Collecting all files...")
-    all_files = []
-    for base_path in paths:
-        if not base_path.exists():
-            continue
-        files = [f for f in base_path.rglob("*.py") if f.is_file()]
-
-        def is_excluded(file_path: Path) -> bool:
-            relative_path = str(file_path.relative_to(base_path))
-            return any(pattern.search(relative_path) for pattern in exclude_files)
-
-        files = [f for f in files if not is_excluded(f)]
-        all_files.extend(files)
-
-    # Initialize layers
+    # Collect code elements and organize them by layers
     layers: dict[str, Layer] = {}
-    for layer_config in layers_config:
-        layers[layer_config["name"]] = Layer(name=layer_config["name"], code_elements=set(), dependencies=set())
-
     code_element_to_layer: dict[CodeElement, str] = {}
+
     logging.info("Collecting code elements for each layer...")
-    for file_path in all_files:
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                file_content = f.read()
-            file_ast = ast.parse(file_content, filename=str(file_path))
-        except:
-            continue
+    for layer_config in config['layers']:
+        layer_name = layer_config['name']
+        logging.debug(f"Processing layer: {layer_name}")
+        collectors = layer_config.get('collectors', [])
+        collected_elements: set[CodeElement] = set()
 
-        # Match collectors
-        for layer_name, collector in layer_collectors:
-            matched = collector.match_in_file(file_ast, file_path)
-            for m in matched:
-                layers[layer_name].code_elements.add(m)
-                code_element_to_layer[m] = layer_name
+        for collector_config in collectors:
+            collector_type = collector_config.get('type', 'unknown')
+            logging.debug(f"Using collector: {collector_type} for layer: {layer_name}")
+            collector = CollectorFactory.create(collector_config, config['paths'], config['exclude_files'])
+            collected_elements.update(collector.collect())
+            logging.debug(f"Collected {len(collected_elements)} elements for collector {collector_type}")
 
-    for ln, l in layers.items():
-        logging.info(f"Layer '{ln}' collected {len(l.code_elements)} code elements.")
+        # Initialize Layer with collected code elements
+        layer = Layer(
+            name=layer_name,
+            code_elements=collected_elements,
+            dependencies=set()  # No longer needed but kept for potential future use
+        )
+        layers[layer_name] = layer
+        logging.info(f"Layer '{layer_name}' collected {len(collected_elements)} code elements.")
+
+        # Map each code element to its layer
+        for element in collected_elements:
+            code_element_to_layer[element] = layer_name
 
     # Prepare the dependency rule
     logging.info("Preparing dependency rules...")
-    rules = RuleFactory.create_rules(ruleset)
+    rules = RuleFactory.create_rules(config['ruleset'])
 
     # Initialize a list to collect violations and metrics
     violations: set[Violation] = set()
