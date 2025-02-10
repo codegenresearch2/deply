@@ -11,7 +11,7 @@ from .models.layer import Layer
 from .reports.report_generator import ReportGenerator
 from .rules.dependency_rule import DependencyRule
 
-def analyze_command(args):
+def analyze_code(args):
     config_path = Path(args.config)
 
     # Parse configuration
@@ -93,7 +93,7 @@ def main():
         args = parser.parse_args(['analyze'] + sys.argv[1:])
 
     if args.command == 'analyze':
-        analyze_command(args)
+        analyze_code(args)
 
 if __name__ == "__main__":
     main()
