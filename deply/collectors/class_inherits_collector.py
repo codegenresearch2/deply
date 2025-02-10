@@ -9,8 +9,8 @@ from deply.utils.ast_utils import get_import_aliases, get_base_name
 
 class ClassInheritsCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
-        self.base_class = config.get("base_class", "")
-        self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
+        self.base_class = config.get('base_class', '')
+        self.exclude_files_regex_pattern = config.get('exclude_files_regex', '')
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
         self.base_paths = [Path(p) for p in paths]
