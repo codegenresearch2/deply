@@ -73,8 +73,8 @@ class TestCollectors(unittest.TestCase):
             print(f"Error parsing {file_path}: {e}")
             return []
 
-    def run_collector(self, collector):
-        collected_elements = collector.collect()
+    def run_collector(self, collector, paths, exclude_files):
+        collected_elements = collector.collect(paths, exclude_files)
         return {element.name for element in collected_elements}
 
     def test_class_inherits_collector(self):
@@ -84,7 +84,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassInheritsCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         expected_classes = {'UserModel'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -95,7 +95,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = FileRegexCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         expected_classes = {'BaseController', 'UserController'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -106,7 +106,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         expected_classes = {'UserController', 'UserModel', 'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -117,7 +117,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = DirectoryCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         expected_classes = {'BaseService', 'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -128,7 +128,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         expected_classes = {'UserController'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -137,7 +137,7 @@ class TestCollectors(unittest.TestCase):
             'decorator_regex': '^.*decorator$',
         }
         collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         expected_classes = {'UserService', 'helper_function'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -148,7 +148,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         self.assertEqual(len(collected_class_names), 0)
 
     def test_bool_collector(self):
@@ -166,7 +166,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = BoolCollector(collector_config, paths, exclude_files)
-        collected_class_names = self.run_collector(collector)
+        collected_class_names = self.run_collector(collector, paths, exclude_files)
         expected_classes = {'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
 
