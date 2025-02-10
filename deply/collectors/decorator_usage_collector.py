@@ -26,7 +26,7 @@ class DecoratorUsageCollector(BaseCollector):
                     if not self._is_excluded(file_path, base_path):
                         tree = self._parse_file(file_path)
                         if tree is not None:
-                            elements = self._match_in_file(tree, file_path)
+                            elements = self.match_in_file(tree, file_path)
                             collected_elements.update(elements)
         return collected_elements
 
@@ -41,7 +41,7 @@ class DecoratorUsageCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def _match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
@@ -49,8 +49,8 @@ class DecoratorUsageCollector(BaseCollector):
         for node in ast.walk(file_ast):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
-                    decorator_name = self._get_decorator_name(decorator)
-                    if self.decorator_name and decorator_name == self.decorator_name or self.decorator_regex and self.decorator_regex.match(decorator_name):
+                    d_name = self._get_decorator_name(decorator)
+                    if self.decorator_name and d_name == self.decorator_name or self.decorator_regex and self.decorator_regex.match(d_name):
                         full_name = self._get_full_name(node)
                         element_type = "function" if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else "class"
                         elements.add(CodeElement(file=file_path, name=full_name, element_type=element_type, line=node.lineno, column=node.col_offset))
