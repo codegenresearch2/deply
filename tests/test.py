@@ -1,4 +1,3 @@
-# tests/test_code_analyzer.py
 import unittest
 import tempfile
 import shutil
@@ -11,7 +10,6 @@ from io import StringIO
 
 from deply.main import main
 
-
 @contextmanager
 def captured_output():
     new_out, new_err = StringIO(), StringIO()
@@ -21,7 +19,6 @@ def captured_output():
         yield sys.stdout, sys.stderr
     finally:
         sys.stdout, sys.stderr = old_out, old_err
-
 
 class TestCodeAnalyzer(unittest.TestCase):
     def setUp(self):
@@ -95,7 +92,7 @@ class TestCodeAnalyzer(unittest.TestCase):
             with captured_output() as (out, err):
                 try:
                     # Run main with the test config
-                    sys.argv = ['main.py', 'analyze', '--config', str(self.config_yaml)]
+                    sys.argv = ['deply', 'analyze', '--config', str(self.config_yaml)]
                     main()
                 except SystemExit as e:
                     exit_code = e.code
@@ -106,7 +103,6 @@ class TestCodeAnalyzer(unittest.TestCase):
             self.assertIn("Layer 'views' is not allowed to depend on layer 'models'", output)
         finally:
             os.chdir(old_cwd)
-
 
 if __name__ == '__main__':
     unittest.main()
