@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
@@ -19,28 +19,16 @@ class DecoratorUsageCollector(BaseCollector):
 
     def collect(self) -> Set[CodeElement]:
         collected_elements = set()
-        all_files = self.get_all_files()
-
-        for file_path, base_path in all_files:
-            tree = self.parse_file(file_path)
-            if tree is None:
-                continue
-            self.annotate_parent(tree)
-            elements = self.get_elements_with_decorator(tree, file_path)
-            collected_elements.update(elements)
-
-        return collected_elements
-
-    def get_all_files(self) -> List[Tuple[Path, Path]]:
-        all_files = []
-
         for base_path in self.paths:
             if base_path.exists():
                 files = [f for f in base_path.rglob('*.py') if f.is_file()]
-                files = [f for f in files if not self.is_excluded(f, base_path)]
-                all_files.extend([(f, base_path) for f in files])
-
-        return all_files
+                for file_path in files:
+                    if not self.is_excluded(file_path, base_path):
+                        tree = self.parse_file(file_path)
+                        if tree is not None:
+                            elements = self.match_in_file(tree, file_path)
+                            collected_elements.update(elements)
+        return collected_elements
 
     def is_excluded(self, file_path: Path, base_path: Path) -> bool:
         relative_path = str(file_path.relative_to(base_path))
@@ -53,38 +41,32 @@ class DecoratorUsageCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def get_elements_with_decorator(self, tree, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
         elements = set()
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
-                    decorator_name = self.get_full_name(decorator)
+                    decorator_name = self.get_decorator_name(decorator)
                     if (self.decorator_name and decorator_name == self.decorator_name) or (self.decorator_regex and self.decorator_regex.match(decorator_name)):
                         full_name = self.get_full_name(node)
                         element_type = 'function' if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else 'class'
-                        code_element = CodeElement(file=file_path, name=full_name, element_type=element_type, line=node.lineno, column=node.col_offset)
-                        elements.add(code_element)
+                        elements.add(CodeElement(file=file_path, name=full_name, element_type=element_type, line=node.lineno, column=node.col_offset))
         return elements
 
-    def get_full_name(self, node):
+    def get_decorator_name(self, node):
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
-            value = self.get_full_name(node.value)
-            return f'{value}.{node.attr}' if value else node.attr
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            names = []
-            current = node
-            while isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                names.append(current.name)
-                current = getattr(current, 'parent', None)
-            return '.'.join(reversed(names))
+            return f'{self.get_decorator_name(node.value)}.{node.attr}'
         elif isinstance(node, ast.Call):
-            return self.get_full_name(node.func)
+            return self.get_decorator_name(node.func)
         else:
             return ''
 
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
+    def get_full_name(self, node):
+        names = []
+        current = node
+        while isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            names.append(current.name)
+            current = getattr(current, 'parent', None)
+        return '.'.join(reversed(names))
