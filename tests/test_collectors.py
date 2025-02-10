@@ -23,10 +23,12 @@ class TestCollectors(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def create_test_files(self):
-        # Simplify directory and file creation
-        directories = ['controllers', 'models', 'services', 'excluded_folder_name', 'utilities']
-        for directory in directories:
-            (self.test_project_dir / directory).mkdir(parents=True, exist_ok=True)
+        # Create directories explicitly for better readability
+        (self.test_project_dir / 'controllers').mkdir(parents=True, exist_ok=True)
+        (self.test_project_dir / 'models').mkdir(parents=True, exist_ok=True)
+        (self.test_project_dir / 'services').mkdir(parents=True, exist_ok=True)
+        (self.test_project_dir / 'excluded_folder_name').mkdir(parents=True, exist_ok=True)
+        (self.test_project_dir / 'utilities').mkdir(parents=True, exist_ok=True)
 
         # Define file contents
         file_contents = {
@@ -44,8 +46,8 @@ class TestCollectors(unittest.TestCase):
         for file_path, content in file_contents.items():
             (self.test_project_dir / file_path).write_text(content)
 
-    def run_collector(self, collector, file_path):
-        # Refine error handling
+    def run_collector(self, collector, file_path, paths, exclude_files):
+        # Refine error handling and pass paths and exclude_files correctly
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 file_content = f.read()
@@ -54,7 +56,7 @@ class TestCollectors(unittest.TestCase):
             print(f"Error processing file {file_path}: {e}")
             return []
 
-        return collector.match_in_file(file_ast, file_path)
+        return collector.match_in_file(file_ast, file_path, paths, exclude_files)
 
     def test_class_inherits_collector(self):
         collector_config = {'base_class': 'BaseModel'}
