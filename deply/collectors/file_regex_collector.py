@@ -22,19 +22,18 @@ class FileRegexCollector(BaseCollector):
         self.base_path = Path(paths[0]) if paths else Path.cwd()
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
-        # Apply exclude patterns
-        if self.is_excluded(file_path):
-            return set()
-
         elements = set()
 
-        if self.element_type in ['class', '']:
+        if self.is_excluded(file_path):
+            return elements
+
+        if not self.element_type or self.element_type == 'class':
             elements.update(self.get_class_names(file_ast, file_path))
 
-        if self.element_type in ['function', '']:
+        if not self.element_type or self.element_type == 'function':
             elements.update(self.get_function_names(file_ast, file_path))
 
-        if self.element_type in ['variable', '']:
+        if not self.element_type or self.element_type == 'variable':
             elements.update(self.get_variable_names(file_ast, file_path))
 
         return elements
