@@ -51,24 +51,19 @@ class DecoratorUsageCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         elements = set()
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return elements
 
-        for node in ast.walk(tree):
-            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+        for node in ast.walk(file_ast):
+            if isinstance(node, ast.FunctionDef) or isinstance(node, ast.ClassDef):
                 for decorator in node.decorator_list:
-                    d_name = self._get_decorator_name(decorator)
-                    if self.decorator_name == d_name or (self.decorator_regex and self.decorator_regex.match(d_name)):
+                    decorator_name = self._get_decorator_name(decorator)
+                    if self.decorator_name == decorator_name or (self.decorator_regex and self.decorator_regex.match(decorator_name)):
                         full_name = self._get_full_name(node)
-                        code_element = CodeElement(
-                            file=file_path,
-                            name=full_name,
-                            element_type='class' if isinstance(node, ast.ClassDef) else 'function',
-                            line=node.lineno,
-                            column=node.col_offset
-                        )
+                        element_type = 'class' if isinstance(node, ast.ClassDef) else 'function'
+                        code_element = CodeElement(file=file_path, name=full_name, element_type=element_type, line=node.lineno, column=node.col_offset)
                         elements.add(code_element)
         return elements
 
