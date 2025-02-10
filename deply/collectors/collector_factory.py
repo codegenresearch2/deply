@@ -26,5 +26,3 @@ class CollectorFactory:
             return BoolCollector(config, paths, exclude_files)
         else:
             raise ValueError(f"Unknown collector type: {collector_type}")
-
-I have addressed the feedback from the test case. The line of text that was causing the `SyntaxError` has been removed from the code. The code now adheres to proper Python syntax and conventions, and should be able to run successfully without any syntax errors.
