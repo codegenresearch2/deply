@@ -17,15 +17,15 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Sub-commands to run specific tasks.")
 
     # Sub-command for analyzing code
-    analyze_parser = subparsers.add_parser('analyze', help='Analyze code dependencies based on the provided configuration.')
-    analyze_parser.add_argument('--config', type=str, default="deply.yaml", help='Path to the configuration YAML file.')
-    analyze_parser.add_argument('--report-format', type=str, choices=["text", "json", "html"], default="text", help='Format of the output report.')
-    analyze_parser.add_argument('--output', type=str, help='Output file for the report.')
+    parser_analyse = subparsers.add_parser('analyze', help='Analyze code dependencies based on the provided configuration.')
+    parser_analyse.add_argument('--config', type=str, default="deply.yaml", help='Path to the configuration YAML file.')
+    parser_analyse.add_argument('--report-format', type=str, choices=["text", "json", "html"], default="text", help='Format of the output report.')
+    parser_analyse.add_argument('--output', type=str, help='Output file for the report.')
 
     args = parser.parse_args()
 
     if args.command is None:
-        analyze_parser.print_help()
+        parser_analyse.print_help()
         sys.exit(0)
 
     config_path = Path(args.config)
@@ -37,13 +37,13 @@ def main():
     layers: dict[str, Layer] = {}
     code_element_to_layer: dict[CodeElement, str] = {}
 
-    for layer_config in config['layers']:
+    for layer_config in config.get('layers', []):
         layer_name = layer_config['name']
         collectors = layer_config.get('collectors', [])
         collected_elements: set[CodeElement] = set()
 
         for collector_config in collectors:
-            collector = CollectorFactory.create(collector_config, config['paths'], config.get('exclude_files', []))
+            collector = CollectorFactory.create(collector_config, config.get('paths', []), config.get('exclude_files', []))
             collected = collector.collect()
             collected_elements.update(collected)
 
@@ -86,9 +86,9 @@ def main():
 
     # Exit with appropriate status
     if violations:
-        sys.exit(1)
+        exit(1)
     else:
-        sys.exit(0)
+        exit(0)
 
 if __name__ == "__main__":
     main()
