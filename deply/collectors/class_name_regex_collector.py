@@ -2,10 +2,8 @@ import ast
 import re
 from pathlib import Path
 from typing import List, Set, Tuple
-
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
-
 
 class ClassNameRegexCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
@@ -14,18 +12,15 @@ class ClassNameRegexCollector(BaseCollector):
         self.regex = re.compile(self.regex_pattern)
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.paths = [Path(p) for p in paths]
-        self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
-
     def collect(self) -> Set[CodeElement]:
         collected_elements = set()
         all_files = self.get_all_files()
 
         for file_path, base_path in all_files:
             tree = self.parse_file(file_path)
-            if tree is None:
+            if tree is None or self.exclude_regex and self.exclude_regex.search(str(file_path)):
                 continue
-            classes = self.get_matching_classes(tree, file_path)
+            classes = self.match_in_file(tree, file_path)
             collected_elements.update(classes)
 
         return collected_elements
@@ -46,13 +41,6 @@ class ClassNameRegexCollector(BaseCollector):
 
             files = [f for f in files if not is_excluded(f)]
 
-            # Apply collector-specific exclude pattern
-            if self.exclude_regex:
-                files = [
-                    f for f in files
-                    if not self.exclude_regex.match(str(f.relative_to(base_path)))
-                ]
-
             # Collect files along with their base path
             files_with_base = [(f, base_path) for f in files]
             all_files.extend(files_with_base)
@@ -66,9 +54,9 @@ class ClassNameRegexCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def get_matching_classes(self, tree, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         classes = set()
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
                 full_name = self._get_full_name(node)
                 code_element = CodeElement(
