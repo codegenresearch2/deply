@@ -21,15 +21,13 @@ class ClassNameRegexCollector(BaseCollector):
             if base_path.exists():
                 files = [f for f in base_path.rglob("*.py") if f.is_file()]
                 for file_path in files:
-                    collected_elements.update(self.match_in_file(file_path))
+                    tree = self.parse_file(file_path)
+                    if tree is not None:
+                        collected_elements.update(self.match_in_file(tree, file_path))
         return collected_elements
 
-    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.is_excluded(file_path):
-            return set()
-
-        tree = self.parse_file(file_path)
-        if tree is None:
             return set()
 
         elements = set()
