@@ -14,9 +14,6 @@ class ClassNameRegexCollector(BaseCollector):
         self.regex = re.compile(self.regex_pattern)
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.paths = [Path(p) for p in paths]
-        self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
-
     def collect(self) -> Set[CodeElement]:
         collected_elements = set()
         all_files = self.get_all_files()
@@ -60,15 +57,15 @@ class ClassNameRegexCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
+            return set()
+
         classes = set()
-        import_aliases = get_import_aliases(tree)
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
-                if self.is_excluded(file_path, file_path.parent):
-                    continue
                 if self.regex.match(node.name):
-                    full_name = self._get_full_name(node, import_aliases)
+                    full_name = self._get_full_name(node)
                     code_element = CodeElement(
                         file=file_path,
                         name=full_name,
@@ -79,11 +76,10 @@ class ClassNameRegexCollector(BaseCollector):
                     classes.add(code_element)
         return classes
 
-    def _get_full_name(self, node, import_aliases):
+    def _get_full_name(self, node):
         names = []
         current = node
         while isinstance(current, (ast.ClassDef, ast.FunctionDef)):
             names.append(current.name)
             current = getattr(current, 'parent', None)
-        full_name = '.'.join(reversed(names))
-        return get_base_name(full_name, import_aliases)
+        return '.'.join(reversed(names))
