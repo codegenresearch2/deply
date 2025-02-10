@@ -79,10 +79,7 @@ class ClassNameRegexCollector(BaseCollector):
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
 
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
+# Removed the annotate_parent method as it was not needed based on the feedback
 
 
 Changes made based on the feedback:
@@ -90,4 +87,4 @@ Changes made based on the feedback:
 2. Moved the exclusion check to the beginning of the `match_in_file` method.
 3. Removed the commented line `#self.annotate_parent(file_ast)` as it was not needed.
 4. Updated the `_get_full_name` method to specifically check for `ast.ClassDef` and `ast.FunctionDef`.
-5. Added docstrings to the methods for better readability and understanding.
+5. Removed the `annotate_parent` method as it was not needed.
