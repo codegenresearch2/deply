@@ -17,42 +17,34 @@ class TestCollectors(unittest.TestCase):
     def setUp(self):
         self.test_dir = tempfile.mkdtemp()
         self.test_project_dir = Path(self.test_dir) / 'test_project'
-        self.test_project_dir.mkdir()
         self.create_test_files()
 
     def tearDown(self):
         shutil.rmtree(self.test_dir)
 
     def create_test_files(self):
-        directories = ['controllers', 'models', 'services', 'excluded_folder_name', 'utilities']
-        for directory in directories:
-            (self.test_project_dir / directory).mkdir()
+        # Simplify directory and file creation
+        for directory in ['controllers', 'models', 'services', 'excluded_folder_name', 'utilities']:
+            (self.test_project_dir / directory).mkdir(parents=True, exist_ok=True)
 
-        base_controller_py = self.test_project_dir / 'controllers' / 'base_controller.py'
-        base_controller_py.write_text('class BaseController:\n    pass\n')
+        # Define file contents
+        file_contents = {
+            'controllers/base_controller.py': 'class BaseController:\n    pass\n',
+            'controllers/user_controller.py': '@login_required\nclass UserController(BaseController):\n    pass\n',
+            'models/base_model.py': 'class BaseModel:\n    pass\n',
+            'models/user_model.py': 'class UserModel(BaseModel):\n    pass\n',
+            'services/base_service.py': 'class BaseService:\n    pass\n',
+            'services/user_service.py': '@service_decorator\nclass UserService(BaseService):\n    pass\n',
+            'excluded_folder_name/deprecated_service.py': '@deprecated_service\nclass DeprecatedService(BaseService):\n    pass\n',
+            'utilities/utils.py': '@utility_decorator\ndef helper_function():\n    pass\n'
+        }
 
-        user_controller_py = self.test_project_dir / 'controllers' / 'user_controller.py'
-        user_controller_py.write_text('@login_required\nclass UserController(BaseController):\n    pass\n')
-
-        base_model_py = self.test_project_dir / 'models' / 'base_model.py'
-        base_model_py.write_text('class BaseModel:\n    pass\n')
-
-        user_model_py = self.test_project_dir / 'models' / 'user_model.py'
-        user_model_py.write_text('class UserModel(BaseModel):\n    pass\n')
-
-        base_service_py = self.test_project_dir / 'services' / 'base_service.py'
-        base_service_py.write_text('class BaseService:\n    pass\n')
-
-        user_service_py = self.test_project_dir / 'services' / 'user_service.py'
-        user_service_py.write_text('@service_decorator\nclass UserService(BaseService):\n    pass\n')
-
-        deprecated_service_py = self.test_project_dir / 'excluded_folder_name' / 'deprecated_service.py'
-        deprecated_service_py.write_text('@deprecated_service\nclass DeprecatedService(BaseService):\n    pass\n')
-
-        utils_py = self.test_project_dir / 'utilities' / 'utils.py'
-        utils_py.write_text('@utility_decorator\ndef helper_function():\n    pass\n')
+        # Create files
+        for file_path, content in file_contents.items():
+            (self.test_project_dir / file_path).write_text(content)
 
     def run_collector(self, collector, file_path):
+        # Refactor to handle paths and exclusions more effectively
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 file_content = f.read()
@@ -143,10 +135,6 @@ class TestCollectors(unittest.TestCase):
 
     @staticmethod
     def capture_output():
-        from contextlib import contextmanager
-        from io import StringIO
-        import sys
-
         @contextmanager
         def _capture_output():
             new_out, new_err = StringIO(), StringIO()
@@ -156,7 +144,6 @@ class TestCollectors(unittest.TestCase):
                 yield sys.stdout, sys.stderr
             finally:
                 sys.stdout, sys.stderr = old_out, old_err
-
         return _capture_output()
 
 if __name__ == '__main__':
