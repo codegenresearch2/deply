@@ -9,25 +9,17 @@ class ConfigParser:
         self.config_path = config_path
 
     def parse(self) -> Dict[str, Any]:
-        """
-        Parse the configuration file and return the configuration as a dictionary.
+        with self.config_path.open("r") as f:
+            config = yaml.safe_load(f)
 
-        :return: The configuration as a dictionary.
-        """
-        try:
-            with self.config_path.open("r") as f:
-                config = yaml.safe_load(f)
+        config = config.get('deply', config)
+        if 'paths' not in config:
+            config['paths'] = [str(self.config_path.parent)]
+        config.setdefault('exclude_files', [])
+        config.setdefault('layers', [])
+        config.setdefault('ruleset', {})
 
-            config = config.get('deply', {})
-            config.setdefault('paths', [str(self.config_path.parent)])
-            config.setdefault('exclude_files', [])
-            config.setdefault('layers', [])
-            config.setdefault('ruleset', {})
-
-            return config
-        except Exception as e:
-            print(f"Error parsing configuration file: {e}", file=sys.stderr)
-            sys.exit(1)
+        return config
 
 def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
