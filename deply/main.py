@@ -16,11 +16,11 @@ def main():
     parser = argparse.ArgumentParser(prog="deply", description='A dependency analysis tool for Python projects')
     subparsers = parser.add_subparsers(dest='command', title='Sub-commands', help='Available commands')
 
-    analyze_parser = subparsers.add_parser('analyze', help='Analyze code for dependencies')
-    analyze_parser.add_argument("--config", type=str, default='deply.yaml', help="Path to the configuration YAML file")
-    analyze_parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
-                                help="Format of the output report")
-    analyze_parser.add_argument("--output", type=str, help="Output file for the report")
+    analyze_subparser = subparsers.add_parser('analyze', help='Analyze code for dependencies')
+    analyze_subparser.add_argument("--config", type=str, default='deply.yaml', help="Path to the configuration YAML file")
+    analyze_subparser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
+                                   help="Format of the output report")
+    analyze_subparser.add_argument("--output", type=str, help="Output file for the report")
 
     if len(sys.argv) == 1:
         sys.argv.append('analyze')
@@ -32,13 +32,9 @@ def main():
     # Parse configuration
     config = ConfigParser(config_path).parse()
 
-    # Ensure 'deply' key exists in the configuration
-    if 'deply' not in config:
-        config['deply'] = {}
-
     # Set default paths if they are empty
-    if not config['deply'].get('paths'):
-        config['deply']['paths'] = ['./']
+    if not config.get('paths'):
+        config['paths'] = ['./']
 
     # Collect code elements and organize them by layers
     layers: dict[str, Layer] = {}
