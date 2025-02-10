@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
@@ -63,6 +63,10 @@ class DirectoryCollector(BaseCollector):
 
         # Apply collector-specific exclude pattern
         if self.exclude_regex and self.exclude_regex.match(str(file_path)):
+            return set()
+
+        # Check if the file is within the specified directories
+        if not self.is_in_directories(file_path, file_path.parent):
             return set()
 
         elements = set()
