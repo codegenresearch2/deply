@@ -97,6 +97,7 @@ def main():
 
     try:
         deply = Deply(Path(args.config))
+        logging.info(f"Using configuration file: {args.config}")
         deply.collect_code_elements()
         deply.analyze()
         report = deply.generate_report(args.report_format)
