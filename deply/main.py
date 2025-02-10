@@ -34,13 +34,13 @@ def main():
     config = ConfigParser(config_path).parse()
 
     # Collect code elements and organize them by layers
-    layers = {}
-    code_element_to_layer = {}
+    layers: dict[str, Layer] = {}
+    code_element_to_layer: dict[CodeElement, str] = {}
 
     for layer_config in config.get('layers', []):
         layer_name = layer_config['name']
         collectors = layer_config.get('collectors', [])
-        collected_elements = set()
+        collected_elements: set[CodeElement] = set()
 
         for collector_config in collectors:
             collector = CollectorFactory.create(collector_config, config.get('paths', []), config.get('exclude_files', []))
@@ -61,7 +61,7 @@ def main():
 
     # Analyze code to find dependencies
     analyzer = CodeAnalyzer(set(code_element_to_layer.keys()))
-    dependencies = analyzer.analyze()
+    dependencies: set[Dependency] = analyzer.analyze()
 
     # Assign dependencies to respective layers
     for dependency in dependencies:
