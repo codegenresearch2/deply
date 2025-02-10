@@ -43,12 +43,12 @@ class FileRegexCollector(BaseCollector):
         relative_path = str(file_path.relative_to(self.base_path))
         absolute_path = str(file_path.absolute())
 
-        # Check collector-specific exclude pattern
-        if self.exclude_regex and (self.exclude_regex.match(relative_path) or self.exclude_regex.match(absolute_path)):
-            return True
-
         # Check global exclude patterns
         if any(pattern.search(relative_path) or pattern.search(absolute_path) for pattern in self.exclude_files):
+            return True
+
+        # Check collector-specific exclude pattern
+        if self.exclude_regex and (self.exclude_regex.match(relative_path) or self.exclude_regex.match(absolute_path)):
             return True
 
         return False
