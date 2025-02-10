@@ -23,8 +23,10 @@ class FileRegexCollector(BaseCollector):
         collected_elements = set()
 
         for file_path in all_files:
-            elements = self.match_in_file(file_path)
-            collected_elements.update(elements)
+            tree = self.parse_file(file_path)
+            if tree is not None:
+                elements = self.match_in_file(tree, file_path)
+                collected_elements.update(elements)
 
         return collected_elements
 
@@ -44,7 +46,7 @@ class FileRegexCollector(BaseCollector):
 
         return all_files
 
-    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         # Apply collector-specific exclude pattern
         if self.exclude_regex and self.exclude_regex.match(str(file_path)):
             return set()
@@ -55,9 +57,6 @@ class FileRegexCollector(BaseCollector):
             return set()
 
         elements = set()
-        tree = self.parse_file(file_path)
-        if tree is None:
-            return elements
 
         if not self.element_type or self.element_type == 'class':
             elements.update(self.get_class_names(tree, file_path))
