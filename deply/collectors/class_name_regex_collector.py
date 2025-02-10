@@ -32,10 +32,17 @@ class ClassNameRegexCollector(BaseCollector):
 
         classes = set()
         for node in ast.walk(file_ast):
-            if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
-                full_name = self._get_full_name(node)
-                code_element = CodeElement(file=file_path, name=full_name, element_type='class', line=node.lineno, column=node.col_offset)
-                classes.add(code_element)
+            if isinstance(node, ast.ClassDef):
+                if self.regex.match(node.name):
+                    full_name = self._get_full_name(node)
+                    code_element = CodeElement(
+                        file=file_path,
+                        name=full_name,
+                        element_type='class',
+                        line=node.lineno,
+                        column=node.col_offset
+                    )
+                    classes.add(code_element)
         return classes
 
     def parse_file(self, file_path: Path):
@@ -52,3 +59,8 @@ class ClassNameRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
