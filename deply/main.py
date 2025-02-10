@@ -56,7 +56,7 @@ def main():
     config = ConfigParser(config_path).parse()
 
     # Collect paths and exclude files separately
-    paths = config.get('paths', [])
+    paths = [Path(path) for path in config.get('paths', [])]
     exclude_patterns = [re.compile(pattern) for pattern in config.get('exclude_files', [])]
 
     # Function to check if a file should be excluded
