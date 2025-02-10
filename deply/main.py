@@ -70,16 +70,29 @@ def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
     parser.add_argument('-V', '--version', action='store_true', help='Show the version number and exit')
     parser.add_argument('-v', '--verbose', action='count', default=1, help='Increase output verbosity')
-    parser.add_argument('--config', type=str, default="deply.yaml", help="Path to the configuration YAML file")
-    parser.add_argument('--report-format', type=str, choices=["text", "json", "html"], default="text", help="Format of the output report")
-    parser.add_argument('--output', type=str, help="Output file for the report")
+
+    subparsers = parser.add_subparsers(dest='command', help='Sub-commands')
+    parser_analyze = subparsers.add_parser('analyze', help='Analyze the project dependencies')
+    parser_analyze.add_argument('--config', type=str, default="deply.yaml", help="Path to the configuration YAML file")
+    parser_analyze.add_argument('--report-format', type=str, choices=["text", "json", "html"], default="text", help="Format of the output report")
+    parser_analyze.add_argument('--output', type=str, help="Output file for the report")
     args = parser.parse_args()
 
     if args.version:
         print(f"deply {__version__}")
         sys.exit(0)
 
-    logging.basicConfig(level=logging.INFO if args.verbose == 1 else logging.DEBUG)
+    log_level = logging.WARNING
+    if args.verbose == 1:
+        log_level = logging.INFO
+    elif args.verbose >= 2:
+        log_level = logging.DEBUG
+
+    logging.basicConfig(
+        level=log_level,
+        format='[%(asctime)s] [%(levelname)s] %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     deply = Deply(Path(args.config))
     deply.collect_code_elements()
@@ -87,7 +100,9 @@ def main():
     report = deply.generate_report(args.report_format)
 
     if args.output:
-        Path(args.output).write_text(report)
+        output_path = Path(args.output)
+        output_path.write_text(report)
+        logging.info(f"Report written to {output_path}")
     else:
         print(report)
 
