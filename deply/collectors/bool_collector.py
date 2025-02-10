@@ -1,8 +1,8 @@
 from typing import Any, Dict, List, Set
-
+from abc import ABC, abstractmethod
+from pathlib import Path
 from deply.models.code_element import CodeElement
 from .base_collector import BaseCollector
-
 
 class BoolCollector(BaseCollector):
     def __init__(self, config: Dict[str, Any], paths: List[str], exclude_files: List[str]):
@@ -12,47 +12,59 @@ class BoolCollector(BaseCollector):
         self.any_of_configs = config.get('any_of', [])
         self.must_not_configs = config.get('must_not', [])
 
-    def collect(self) -> Set[CodeElement]:
-        from .collector_factory import CollectorFactory
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+        # Implement the logic to match elements in a file based on the specific criteria
+        # This is a placeholder implementation and should be replaced with actual logic
+        elements = set()
+        # Example: Assume we are matching boolean variables
+        for node in ast.walk(file_ast):
+            if isinstance(node, ast.Name) and isinstance(node.ctx, ast.Load) and node.id.isidentifier() and node.id.isalpha():
+                elements.add(CodeElement(name=node.id, file_path=file_path))
+        return elements
 
-        elements_set = set()
+    def collect(self) -> Set[CodeElement]:
+        must_elements = None
+        any_of_elements = None
+        must_not_elements = set()
 
         # Collect elements based on must_configs
-        must_sets = []
         for collector_config in self.must_configs:
             collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
-            must_elements = collector.collect()
-            if must_elements:
-                must_sets.append(must_elements)
+            elements = collector.collect()
+            if elements:
+                if must_elements is None:
+                    must_elements = elements
+                else:
+                    must_elements &= elements
 
         # Collect elements based on any_of_configs
-        any_of_sets = []
         for collector_config in self.any_of_configs:
             collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
-            any_of_elements = collector.collect()
-            if any_of_elements:
-                any_of_sets.append(any_of_elements)
+            elements = collector.collect()
+            if elements:
+                if any_of_elements is None:
+                    any_of_elements = elements
+                else:
+                    any_of_elements |= elements
 
         # Collect elements based on must_not_configs
-        must_not_elements = set()
         for collector_config in self.must_not_configs:
             collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
-            not_elements = collector.collect()
-            if not_elements:
-                must_not_elements.update(not_elements)
+            elements = collector.collect()
+            if elements:
+                must_not_elements.update(elements)
 
-        # Combine must_sets if any
-        if must_sets:
-            elements_set = set.intersection(*must_sets)
+        # Combine must_elements and any_of_elements
+        if must_elements is not None and any_of_elements is not None:
+            combined_elements = must_elements & any_of_elements
+        elif must_elements is not None:
+            combined_elements = must_elements
+        elif any_of_elements is not None:
+            combined_elements = any_of_elements
+        else:
+            combined_elements = set()
 
-        # Combine any_of_sets if any
-        if any_of_sets:
-            if elements_set:
-                elements_set = elements_set.union(*any_of_sets)
-            else:
-                elements_set = set.union(*any_of_sets)
-
-        # Subtract must_not_elements
-        final_elements = elements_set - must_not_elements if elements_set else set()
+        # Final elements after removing must_not_elements
+        final_elements = combined_elements - must_not_elements
 
         return final_elements
