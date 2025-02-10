@@ -1,11 +1,10 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
-from deply.utils.ast_utils import get_full_name
 
 class ClassNameRegexCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
@@ -18,23 +17,15 @@ class ClassNameRegexCollector(BaseCollector):
 
     def collect(self) -> Set[CodeElement]:
         collected_elements = set()
-        all_files = self.get_all_files()
-
-        for file_path, base_path in all_files:
-            tree = self.parse_file(file_path)
-            if tree is None:
-                continue
-            collected_elements.update(self.find_matching_classes(tree, file_path))
-
-        return collected_elements
-
-    def get_all_files(self) -> List[Tuple[Path, Path]]:
-        all_files = []
         for base_path in self.paths:
             if base_path.exists():
                 files = [f for f in base_path.rglob("*.py") if f.is_file() and not self.is_excluded(f, base_path)]
-                all_files.extend([(f, base_path) for f in files])
-        return all_files
+                for file_path in files:
+                    tree = self.parse_file(file_path)
+                    if tree is None:
+                        continue
+                    collected_elements.update(self.match_in_file(tree, file_path))
+        return collected_elements
 
     def is_excluded(self, file_path: Path, base_path: Path) -> bool:
         relative_path = str(file_path.relative_to(base_path))
@@ -48,14 +39,14 @@ class ClassNameRegexCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def find_matching_classes(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         elements = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
-                elements.add(CodeElement(file=file_path, name=self.get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
+                elements.add(CodeElement(file=file_path, name=self._get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
         return elements
 
-    def get_full_name(self, node):
+    def _get_full_name(self, node):
         names = []
         while isinstance(node, (ast.ClassDef, ast.FunctionDef)):
             names.append(node.name)
