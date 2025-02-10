@@ -5,7 +5,6 @@ from typing import List, Set
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
-from deply.utils.ast_utils import get_import_aliases, get_base_name
 
 class FileRegexCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
@@ -60,15 +59,13 @@ class FileRegexCollector(BaseCollector):
         if tree is None:
             return elements
 
-        if self.element_type == 'class':
+        if not self.element_type or self.element_type == 'class':
             elements.update(self.get_class_names(tree, file_path))
-        elif self.element_type == 'function':
+
+        if not self.element_type or self.element_type == 'function':
             elements.update(self.get_function_names(tree, file_path))
-        elif self.element_type == 'variable':
-            elements.update(self.get_variable_names(tree, file_path))
-        else:
-            elements.update(self.get_class_names(tree, file_path))
-            elements.update(self.get_function_names(tree, file_path))
+
+        if not self.element_type or self.element_type == 'variable':
             elements.update(self.get_variable_names(tree, file_path))
 
         return elements
@@ -85,7 +82,13 @@ class FileRegexCollector(BaseCollector):
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 full_name = self._get_full_name(node)
-                code_element = CodeElement(file=file_path, name=full_name, element_type="class", line=node.lineno, column=node.col_offset)
+                code_element = CodeElement(
+                    file=file_path,
+                    name=full_name,
+                    element_type='class',
+                    line=node.lineno,
+                    column=node.col_offset
+                )
                 classes.add(code_element)
         return classes
 
@@ -94,7 +97,13 @@ class FileRegexCollector(BaseCollector):
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
                 full_name = self._get_full_name(node)
-                code_element = CodeElement(file=file_path, name=full_name, element_type="function", line=node.lineno, column=node.col_offset)
+                code_element = CodeElement(
+                    file=file_path,
+                    name=full_name,
+                    element_type='function',
+                    line=node.lineno,
+                    column=node.col_offset
+                )
                 functions.add(code_element)
         return functions
 
@@ -104,7 +113,13 @@ class FileRegexCollector(BaseCollector):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
-                        code_element = CodeElement(file=file_path, name=target.id, element_type="variable", line=target.lineno, column=target.col_offset)
+                        code_element = CodeElement(
+                            file=file_path,
+                            name=target.id,
+                            element_type='variable',
+                            line=target.lineno,
+                            column=target.col_offset
+                        )
                         variables.add(code_element)
         return variables
 
@@ -113,5 +128,10 @@ class FileRegexCollector(BaseCollector):
         current = node
         while isinstance(current, (ast.ClassDef, ast.FunctionDef)):
             names.append(current.name)
-            current = getattr(current, "parent", None)
-        return ".".join(reversed(names))
+            current = getattr(current, 'parent', None)
+        return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
