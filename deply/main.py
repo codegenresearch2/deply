@@ -2,7 +2,6 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-import ast
 import re
 
 from deply import __version__
@@ -57,16 +56,13 @@ def main():
     logging.info(f"Using configuration file: {config_path}")
     config = ConfigParser(config_path).parse()
 
-    # Collect paths and excluded files separately
+    # Collect paths and excluded files
     paths = config.get('paths', [])
-    exclude_files = config.get('exclude_files', [])
+    exclude_files = [re.compile(pattern) for pattern in config.get('exclude_files', [])]
 
     # Define a function to check if a file should be excluded
     def is_excluded(file_path):
-        for pattern in exclude_files:
-            if re.match(pattern, str(file_path)):
-                return True
-        return False
+        return any(pattern.match(str(file_path)) for pattern in exclude_files)
 
     # Collect code elements and organize them by layers
     layers: dict[str, Layer] = {}
@@ -82,7 +78,7 @@ def main():
         for collector_config in collectors:
             collector_type = collector_config.get('type', 'unknown')
             logging.debug(f"Using collector: {collector_type} for layer: {layer_name}")
-            collector = CollectorFactory.create(collector_config, paths, exclude_files)
+            collector = CollectorFactory.create(collector_config, paths, is_excluded)
             try:
                 collected = collector.collect()
                 collected_elements.update(collected)
