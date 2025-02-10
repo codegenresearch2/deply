@@ -8,7 +8,7 @@ from deply.models.code_element import CodeElement
 from deply.utils.ast_utils import get_import_aliases, get_base_name
 
 class DirectoryCollector(BaseCollector):
-    def __init__(self, config: dict, base_paths: List[str], exclude_files: List[str]):
+    def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
         self.directories = config.get("directories", [])
         self.recursive = config.get("recursive", True)
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
@@ -16,7 +16,7 @@ class DirectoryCollector(BaseCollector):
 
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.base_paths = [Path(p) for p in base_paths]
+        self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def collect(self) -> Set[CodeElement]:
@@ -32,21 +32,21 @@ class DirectoryCollector(BaseCollector):
     def get_all_files(self) -> List[Path]:
         all_files = []
 
-        for base_path in self.base_paths:
-            if not base_path.exists():
+        for path in self.paths:
+            if not path.exists():
                 continue
 
             if self.recursive:
-                files = [f for f in base_path.rglob('*.py') if f.is_file() and self.is_in_directories(f, base_path)]
+                files = [f for f in path.rglob('*.py') if f.is_file() and self.is_in_directories(f, path)]
             else:
-                files = [f for f in base_path.glob('*.py') if f.is_file() and self.is_in_directories(f, base_path)]
+                files = [f for f in path.glob('*.py') if f.is_file() and self.is_in_directories(f, path)]
 
             # Apply global exclude patterns
-            files = [f for f in files if not any(pattern.search(str(f.relative_to(base_path))) for pattern in self.exclude_files)]
+            files = [f for f in files if not any(pattern.search(str(f.relative_to(path))) for pattern in self.exclude_files)]
 
             # Apply collector-specific exclude pattern
             if self.exclude_regex:
-                files = [f for f in files if not self.exclude_regex.match(str(f.relative_to(base_path)))]
+                files = [f for f in files if not self.exclude_regex.match(str(f.relative_to(path)))]
 
             all_files.extend(files)
 
@@ -56,33 +56,25 @@ class DirectoryCollector(BaseCollector):
         relative_path = file_path.relative_to(base_path)
         return any(relative_path.parts[0] == directory for directory in self.directories)
 
-    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
-        elements = set()
-        tree = self.parse_file(file_path)
-        if tree is None:
-            return elements
+    def match_in_file(self, file_path: Path, file_ast: ast.AST) -> Set[CodeElement]:
+        # Apply collector-specific exclude pattern
+        if self.exclude_regex and self.exclude_regex.match(str(file_path)):
+            return set()
 
-        self.annotate_parent(tree)
+        elements = set()
 
         if not self.element_type or self.element_type == 'class':
-            elements.update(self.get_class_names(tree, file_path))
+            elements.update(self.get_class_names(file_ast, file_path))
 
         if not self.element_type or self.element_type == 'function':
-            elements.update(self.get_function_names(tree, file_path))
+            elements.update(self.get_function_names(file_ast, file_path))
 
         if not self.element_type or self.element_type == 'variable':
-            elements.update(self.get_variable_names(tree, file_path))
+            elements.update(self.get_variable_names(file_ast, file_path))
 
         return elements
 
-    def parse_file(self, file_path: Path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return ast.parse(f.read(), filename=str(file_path))
-        except (SyntaxError, UnicodeDecodeError):
-            return None
-
-    def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
+    def get_class_names(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         classes = set()
         import_aliases = get_import_aliases(tree)
         for node in ast.walk(tree):
@@ -110,7 +102,7 @@ class DirectoryCollector(BaseCollector):
                     classes.add(base_code_element)
         return classes
 
-    def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
+    def get_function_names(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         functions = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
@@ -125,7 +117,7 @@ class DirectoryCollector(BaseCollector):
                 functions.add(code_element)
         return functions
 
-    def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
+    def get_variable_names(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         variables = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
@@ -148,8 +140,3 @@ class DirectoryCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
-
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
