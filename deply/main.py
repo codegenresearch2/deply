@@ -3,6 +3,7 @@ import logging
 import sys
 from pathlib import Path
 import re
+import ast
 
 from deply import __version__
 from deply.rules import RuleFactory
@@ -58,7 +59,8 @@ def main():
 
     # Collect paths and excluded files
     paths = config.get('paths', [])
-    exclude_files = [re.compile(pattern) for pattern in config.get('exclude_files', [])]
+    exclude_files_patterns = config.get('exclude_files', [])
+    exclude_files = [re.compile(pattern) for pattern in exclude_files_patterns]
 
     # Define a function to check if a file should be excluded
     def is_excluded(file_path):
