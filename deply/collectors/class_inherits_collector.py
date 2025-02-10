@@ -10,7 +10,8 @@ from deply.utils.ast_utils import get_import_aliases, get_base_name
 class ClassInheritsCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
         self.base_class = config.get("base_class", "")
-        self.exclude_regex = re.compile(config.get("exclude_files_regex", "")) if config.get("exclude_files_regex", "") else None
+        self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
@@ -28,7 +29,7 @@ class ClassInheritsCollector(BaseCollector):
 
     def parse_file(self, file_path: Path):
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 return ast.parse(f.read(), filename=str(file_path))
         except (SyntaxError, UnicodeDecodeError):
             return None
@@ -43,9 +44,9 @@ class ClassInheritsCollector(BaseCollector):
             if isinstance(node, ast.ClassDef):
                 for base in node.bases:
                     base_name = get_base_name(base, import_aliases)
-                    if base_name == self.base_class or base_name.endswith(f'.{self.base_class}'):
+                    if base_name == self.base_class or base_name.endswith(f".{self.base_class}"):
                         full_name = self._get_full_name(node)
-                        code_element = CodeElement(file=file_path, name=full_name, element_type='class', line=node.lineno, column=node.col_offset)
+                        code_element = CodeElement(file=file_path, name=full_name, element_type="class", line=node.lineno, column=node.col_offset)
                         classes.add(code_element)
         return classes
 
@@ -54,5 +55,5 @@ class ClassInheritsCollector(BaseCollector):
         current = node
         while isinstance(current, (ast.ClassDef, ast.FunctionDef)):
             names.append(current.name)
-            current = getattr(current, 'parent', None)
-        return '.'.join(reversed(names))
+            current = getattr(current, "parent", None)
+        return ".".join(reversed(names))
