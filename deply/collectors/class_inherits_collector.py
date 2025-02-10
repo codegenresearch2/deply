@@ -18,15 +18,17 @@ class ClassInheritsCollector(BaseCollector):
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
+        import_aliases = get_import_aliases(file_ast)
         classes = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
                 for base in node.bases:
-                    base_name = get_base_name(base, get_import_aliases(file_ast))
+                    base_name = get_base_name(base, import_aliases)
                     if base_name == self.base_class or base_name.endswith(f".{self.base_class}"):
+                        full_name = self._get_full_name(node)
                         code_element = CodeElement(
                             file=file_path,
-                            name=self._get_full_name(node),
+                            name=full_name,
                             element_type='class',
                             line=node.lineno,
                             column=node.col_offset
