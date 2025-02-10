@@ -18,8 +18,8 @@ class ConfigParser:
             with self.config_path.open("r") as f:
                 config = yaml.safe_load(f)
 
-            config = config['deply']
-            config.setdefault('paths', [])
+            config = config.get('deply', {})
+            config.setdefault('paths', [str(self.config_path.parent)])
             config.setdefault('exclude_files', [])
             config.setdefault('layers', [])
             config.setdefault('ruleset', {})
@@ -48,5 +48,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-In the rewritten code, I have added help descriptions for commands and consistent error handling with SystemExit exceptions. I have also implemented subcommands and a clearer command-line argument structure for better organization. The ConfigParser class now has a parse method that includes error handling for parsing the configuration file. If an error occurs, the program will print an error message and exit with a status code of 1.
