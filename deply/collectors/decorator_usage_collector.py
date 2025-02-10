@@ -23,18 +23,18 @@ class DecoratorUsageCollector(BaseCollector):
             if base_path.exists():
                 files = [f for f in base_path.rglob('*.py') if f.is_file()]
                 for file_path in files:
-                    if not self.is_excluded(file_path, base_path):
-                        tree = self.parse_file(file_path)
+                    if not self._is_excluded(file_path, base_path):
+                        tree = self._parse_file(file_path)
                         if tree is not None:
                             elements = self.match_in_file(tree, file_path)
                             collected_elements.update(elements)
         return collected_elements
 
-    def is_excluded(self, file_path: Path, base_path: Path) -> bool:
+    def _is_excluded(self, file_path: Path, base_path: Path) -> bool:
         relative_path = str(file_path.relative_to(base_path))
         return any(pattern.search(relative_path) for pattern in self.exclude_files) or (self.exclude_regex and self.exclude_regex.match(relative_path))
 
-    def parse_file(self, file_path: Path):
+    def _parse_file(self, file_path: Path):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 return ast.parse(f.read(), filename=str(file_path))
@@ -46,24 +46,25 @@ class DecoratorUsageCollector(BaseCollector):
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
-                    decorator_name = self.get_decorator_name(decorator)
+                    decorator_name = self._get_decorator_name(decorator)
                     if (self.decorator_name and decorator_name == self.decorator_name) or (self.decorator_regex and self.decorator_regex.match(decorator_name)):
-                        full_name = self.get_full_name(node)
+                        full_name = self._get_full_name(node)
                         element_type = 'function' if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) else 'class'
                         elements.add(CodeElement(file=file_path, name=full_name, element_type=element_type, line=node.lineno, column=node.col_offset))
         return elements
 
-    def get_decorator_name(self, node):
+    def _get_decorator_name(self, node):
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
-            return f'{self.get_decorator_name(node.value)}.{node.attr}'
+            value = self._get_decorator_name(node.value)
+            return f'{value}.{node.attr}' if value else node.attr
         elif isinstance(node, ast.Call):
-            return self.get_decorator_name(node.func)
+            return self._get_decorator_name(node.func)
         else:
             return ''
 
-    def get_full_name(self, node):
+    def _get_full_name(self, node):
         names = []
         current = node
         while isinstance(current, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
