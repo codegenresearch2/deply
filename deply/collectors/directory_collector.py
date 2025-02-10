@@ -26,41 +26,15 @@ class DirectoryCollector(BaseCollector):
             return elements
 
         if not self.element_type or self.element_type == 'class':
-            elements.update(self.get_elements(tree, file_path, ast.ClassDef, 'class'))
+            elements.update(self.get_class_names(tree, file_path))
 
         if not self.element_type or self.element_type == 'function':
-            elements.update(self.get_elements(tree, file_path, ast.FunctionDef, 'function'))
+            elements.update(self.get_function_names(tree, file_path))
 
         if not self.element_type or self.element_type == 'variable':
-            elements.update(self.get_elements(tree, file_path, ast.Assign, 'variable', self.get_variable_names))
+            elements.update(self.get_variable_names(tree, file_path))
 
         return elements
-
-    def get_elements(self, tree, file_path: Path, node_type, element_type: str, extract_func=None) -> Set[CodeElement]:
-        elements = set()
-        for node in ast.walk(tree):
-            if isinstance(node, node_type):
-                if extract_func:
-                    names = extract_func(node)
-                else:
-                    names = [self._get_full_name(node)]
-                for name in names:
-                    code_element = CodeElement(
-                        file=file_path,
-                        name=name,
-                        element_type=element_type,
-                        line=node.lineno,
-                        column=node.col_offset
-                    )
-                    elements.add(code_element)
-        return elements
-
-    def get_variable_names(self, node) -> List[str]:
-        names = []
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                names.append(target.id)
-        return names
 
     def parse_file(self, file_path: Path):
         try:
@@ -68,6 +42,52 @@ class DirectoryCollector(BaseCollector):
                 return ast.parse(f.read(), filename=str(file_path))
         except (SyntaxError, UnicodeDecodeError):
             return None
+
+    def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
+        classes = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef):
+                full_name = self._get_full_name(node)
+                code_element = CodeElement(
+                    file=file_path,
+                    name=full_name,
+                    element_type='class',
+                    line=node.lineno,
+                    column=node.col_offset
+                )
+                classes.add(code_element)
+        return classes
+
+    def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
+        functions = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                full_name = self._get_full_name(node)
+                code_element = CodeElement(
+                    file=file_path,
+                    name=full_name,
+                    element_type='function',
+                    line=node.lineno,
+                    column=node.col_offset
+                )
+                functions.add(code_element)
+        return functions
+
+    def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
+        variables = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                for target in node.targets:
+                    if isinstance(target, ast.Name):
+                        code_element = CodeElement(
+                            file=file_path,
+                            name=target.id,
+                            element_type='variable',
+                            line=target.lineno,
+                            column=target.col_offset
+                        )
+                        variables.add(code_element)
+        return variables
 
     def _get_full_name(self, node):
         names = []
@@ -95,15 +115,3 @@ class DirectoryCollector(BaseCollector):
 
         files = [f for f in files if self.is_file_included(f, base_path)]
         return files
-
-I have addressed the feedback received from the oracle.
-
-1. I have renamed the `collect` method to `match_in_file` to better reflect its purpose.
-2. I have simplified the file inclusion logic by consolidating the checks for global and collector-specific exclude patterns, as well as directory inclusion.
-3. I have consolidated the logic for collecting class, function, and variable names into a more unified structure.
-4. I have included a method for annotating parent nodes, as suggested by the gold code.
-5. I have improved error handling when checking file paths.
-6. I have ensured that I am consistently using sets for collecting elements.
-7. I have added comments to clarify the purpose of certain methods.
-
-The updated code should now align more closely with the gold code and address the feedback received.
