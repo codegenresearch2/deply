@@ -7,7 +7,7 @@ from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
 
 class DirectoryCollector(BaseCollector):
-    def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
+    def __init__(self, config: dict, base_paths: List[str], exclude_files: List[str]):
         self.directories = config.get("directories", [])
         self.recursive = config.get("recursive", True)
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
@@ -15,7 +15,7 @@ class DirectoryCollector(BaseCollector):
 
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.paths = [Path(p) for p in paths]
+        self.base_paths = [Path(p) for p in base_paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
@@ -91,25 +91,24 @@ class DirectoryCollector(BaseCollector):
         return '.'.join(reversed(names))
 
     def is_file_included(self, file_path: Path) -> bool:
-        relative_path = str(file_path.relative_to(self.paths[0]))
-        if any(pattern.search(relative_path) for pattern in self.exclude_files):
+        # Check against global exclude patterns
+        if any(pattern.search(str(file_path)) for pattern in self.exclude_files):
             return False
-        if self.exclude_regex and self.exclude_regex.match(relative_path):
+
+        # Check against collector-specific exclude pattern
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return False
+
+        # Check if the file is within the specified directories
         if self.directories and not self.is_in_directories(file_path):
             return False
+
         return True
 
     def is_in_directories(self, file_path: Path) -> bool:
-        return any(file_path.is_relative_to(self.paths[0] / directory) for directory in self.directories)
-
-I have addressed the feedback received from the oracle.
-
-1. I have modified the `match_in_file` method to accept an additional parameter for the parsed AST of the file. This allows the method to process the AST directly, addressing the `TypeError` issue.
-2. I have consolidated the exclusion logic for files at the beginning of the `match_in_file` method. This includes checking against global exclude patterns and collector-specific patterns before proceeding to extract elements.
-3. I have implemented a dedicated method `is_in_directories` to check if a file is within the specified directories. This enhances readability and maintainability.
-4. I have added comments to explain the purpose and functionality of each method.
-5. I have kept the `_get_full_name` method as it is, as it is not currently used in the code.
-6. I have reviewed the overall structure of the code to ensure it follows a consistent style and organization, similar to the gold code.
-
-The updated code should now align more closely with the gold code and address the feedback received.
+        # Check if the file is within any of the specified directories
+        for base_path in self.base_paths:
+            for directory in self.directories:
+                if file_path.is_relative_to(base_path / directory):
+                    return True
+        return False
