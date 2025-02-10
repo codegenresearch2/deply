@@ -53,6 +53,9 @@ class DecoratorUsageCollector(BaseCollector):
 
     def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
         elements = set()
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
+            return elements
+
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
