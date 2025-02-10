@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set
+from typing import List, Set, Tuple
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
 
