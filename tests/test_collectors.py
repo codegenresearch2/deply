@@ -207,7 +207,7 @@ class TestCollectors(unittest.TestCase):
                 main()
             except SystemExit as e:
                 exit_code = e.code
-        output = out.getvalue()
+        output = out.getvalue().strip()
         self.assertEqual(exit_code, 1)
         self.assertIn("Layer 'controllers_layer' is not allowed to depend on layer 'models_layer'", output)
 
