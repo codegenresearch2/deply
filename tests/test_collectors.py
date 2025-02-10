@@ -44,13 +44,13 @@ class TestCollectors(unittest.TestCase):
             (self.test_project_dir / file_path).write_text(content)
 
     def run_collector(self, collector, file_path):
-        # Refactor to handle paths and exclusions more effectively
+        # Refine error handling
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
                 file_content = f.read()
             file_ast = ast.parse(file_content, filename=str(file_path))
-        except Exception as e:
-            print(f"Error parsing file {file_path}: {e}")
+        except (FileNotFoundError, SyntaxError) as e:
+            print(f"Error processing file {file_path}: {e}")
             return []
 
         return collector.match_in_file(file_ast, file_path)
