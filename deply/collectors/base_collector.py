@@ -1,7 +1,7 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 from typing import Set
-from ..models.code_element import CodeElement
-
+from deply.models.code_element import CodeElement
 
 class BaseCollector(ABC):
     def __init__(self, config: dict, paths: list[str], exclude_files: list[str]):
