@@ -74,14 +74,3 @@ class TestCollectors(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
-
-
-In the revised code, I have addressed the feedback by:
-
-1. Adding the necessary directories and files in the `setUp` method as per the gold code.
-2. Created test methods for each collector to cover all the necessary configurations.
-3. Ensured that the configurations for the collectors in the tests match those in the gold code.
-4. Added tests for decorator usage to replicate the gold code.
-5. Implemented the `capture_output` method as a context manager, similar to the gold code.
-6. Verified the assertions to ensure they are comparing the expected results accurately.
-7. Maintained a consistent structure and naming conventions throughout the code.
