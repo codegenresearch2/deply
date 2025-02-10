@@ -13,16 +13,18 @@ from .rules.dependency_rule import DependencyRule
 def main():
     # Parse command-line arguments
     parser = argparse.ArgumentParser(prog="deply", description='Deply')
-    subparsers = parser.add_subparsers(dest='command')
-    analyze_parser = subparsers.add_parser('analyze')
-    analyze_parser.add_argument("--config", required=True, type=str, help="Path to the configuration YAML file")
+    subparsers = parser.add_subparsers(dest='command', title='commands', help='Available commands')
+
+    analyze_parser = subparsers.add_parser('analyze', help='Analyze code for dependencies')
+    analyze_parser.add_argument("--config", type=str, default='config.yaml', help="Path to the configuration YAML file")
     analyze_parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
                                 help="Format of the output report")
     analyze_parser.add_argument("--output", type=str, help="Output file for the report")
+
     args = parser.parse_args()
 
-    if args.command != 'analyze':
-        parser.error("Unsupported command. Only 'analyze' is supported.")
+    if not args.command:
+        parser.error("No command provided. Please specify a command.")
 
     config_path = Path(args.config)
 
