@@ -1,5 +1,6 @@
 import argparse
 from pathlib import Path
+import sys
 
 from .code_analyzer import CodeAnalyzer
 from .collectors.collector_factory import CollectorFactory
@@ -10,22 +11,28 @@ from .models.layer import Layer
 from .reports.report_generator import ReportGenerator
 from .rules.dependency_rule import DependencyRule
 
-
 def main():
-    # Parse command-line arguments
-    parser = argparse.ArgumentParser(prog="deply", description='Deply')
-    parser.add_argument("--config", required=True, type=str, help="Path to the configuration YAML file")
-    parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
-                        help="Format of the output report")
-    parser.add_argument("--output", type=str, help="Output file for the report")
+    parser = argparse.ArgumentParser(prog="deply", description='Deply - a dependency analysis tool')
+    subparsers = parser.add_subparsers(dest='command', help='Sub-command help')
+
+    # Add sub-command for 'analyze'
+    analyze_parser = subparsers.add_parser('analyze', help='Analyze code dependencies')
+    analyze_parser.add_argument('--config', required=True, type=str, help='Path to the configuration YAML file')
+    analyze_parser.add_argument('--report-format', type=str, choices=['text', 'json', 'html'], default='text', help='Format of the output report')
+    analyze_parser.add_argument('--output', type=str, help='Output file for the report')
+
     args = parser.parse_args()
+
+    if not args.command:
+        parser.print_help()
+        sys.exit(0)
 
     config_path = Path(args.config)
 
     # Parse configuration
     config = ConfigParser(config_path).parse()
 
-    # Ensure 'paths' is always populated
+    # Set default paths if not provided
     if 'paths' not in config:
         config['paths'] = ['./']
 
@@ -67,9 +74,7 @@ def main():
 
     # Apply rules
     rule = DependencyRule(config.get('ruleset', {}))
-    violations = rule.check(
-        layers=layers  # Assuming DependencyRule is updated to handle layers
-    )
+    violations = rule.check(layers=layers)
 
     # Generate report
     report_generator = ReportGenerator(violations)
@@ -84,10 +89,9 @@ def main():
 
     # Exit with appropriate status
     if violations:
-        exit(1)
+        sys.exit(1)
     else:
-        exit(0)
-
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
