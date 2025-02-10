@@ -16,7 +16,7 @@ class ConfigParser:
         config.setdefault('exclude_files', [])
         config.setdefault('layers', [])
         config.setdefault('ruleset', {})
-        if 'paths' not in config or not config['paths']:
+        if not config.get('paths'):
             config['paths'] = [str(self.config_path.parent)]
 
         return config
