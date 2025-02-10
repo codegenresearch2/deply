@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+import ast
 import re
 
 from deply import __version__
