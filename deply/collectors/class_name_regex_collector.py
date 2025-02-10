@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
 
@@ -55,8 +55,6 @@ class ClassNameRegexCollector(BaseCollector):
             return None
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
-        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
-            return set()
         classes = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
@@ -78,3 +76,8 @@ class ClassNameRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
