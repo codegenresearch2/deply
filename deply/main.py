@@ -44,6 +44,7 @@ class Deply:
             self.layers[layer_name] = layer
             for element in collected_elements:
                 self.code_element_to_layer[element] = layer_name
+            logging.info(f"Layer '{layer_name}' collected {len(collected_elements)} code elements.")
 
     def dependency_handler(self, dependency):
         source_element = dependency.code_element
@@ -94,24 +95,28 @@ def main():
         datefmt='%Y-%m-%d %H:%M:%S'
     )
 
-    deply = Deply(Path(args.config))
-    deply.collect_code_elements()
-    deply.analyze()
-    report = deply.generate_report(args.report_format)
+    try:
+        deply = Deply(Path(args.config))
+        deply.collect_code_elements()
+        deply.analyze()
+        report = deply.generate_report(args.report_format)
 
-    if args.output:
-        output_path = Path(args.output)
-        output_path.write_text(report)
-        logging.info(f"Report written to {output_path}")
-    else:
-        print(report)
+        if args.output:
+            output_path = Path(args.output)
+            output_path.write_text(report)
+            logging.info(f"Report written to {output_path}")
+        else:
+            print(report)
 
-    if deply.violations:
-        print(f"\nTotal violation(s): {len(deply.violations)}")
+        if deply.violations:
+            print(f"\nTotal violation(s): {len(deply.violations)}")
+            sys.exit(1)
+        else:
+            print("\nNo violations detected.")
+            sys.exit(0)
+    except Exception as e:
+        logging.error(f"An error occurred: {str(e)}")
         sys.exit(1)
-    else:
-        print("\nNo violations detected.")
-        sys.exit(0)
 
 if __name__ == "__main__":
     main()
