@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
 
@@ -76,3 +76,8 @@ class ClassNameRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
