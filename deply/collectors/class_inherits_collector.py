@@ -7,10 +7,12 @@ from deply.models.code_element import CodeElement
 from deply.utils.ast_utils import get_import_aliases, get_base_name
 
 class ClassInheritsCollector(BaseCollector):
-    def __init__(self, config: dict):
+    def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
         self.base_class = config.get("base_class", "")
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
+        self.paths = paths
+        self.exclude_files = exclude_files
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
