@@ -5,7 +5,6 @@ from typing import List, Set, Tuple
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
-from deply.utils.ast_utils import get_import_aliases, get_base_name
 
 class ClassNameRegexCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
@@ -36,7 +35,7 @@ class ClassNameRegexCollector(BaseCollector):
 
             files = [f for f in base_path.rglob("*.py") if f.is_file()]
 
-            # Apply global and collector-specific exclude patterns
+            # Apply exclude patterns
             files = [f for f in files if not self.is_excluded(f, base_path)]
 
             # Collect files along with their base path
@@ -47,8 +46,7 @@ class ClassNameRegexCollector(BaseCollector):
 
     def is_excluded(self, file_path: Path, base_path: Path) -> bool:
         relative_path = str(file_path.relative_to(base_path))
-        return any(pattern.search(relative_path) for pattern in self.exclude_files) or \
-               (self.exclude_regex and self.exclude_regex.search(relative_path))
+        return self.exclude_regex and self.exclude_regex.search(relative_path)
 
     def parse_file(self, file_path: Path):
         try:
