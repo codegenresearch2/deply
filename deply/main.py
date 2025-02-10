@@ -12,11 +12,11 @@ from .rules.dependency_rule import DependencyRule
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(prog="deply", description='Deply')
-    subparsers = parser.add_subparsers(dest='command', title='commands', help='Available commands')
+    parser = argparse.ArgumentParser(prog="deply", description='Dependency analysis tool')
+    subparsers = parser.add_subparsers(dest='command', title='Sub-commands', help='Available commands')
 
     analyze_parser = subparsers.add_parser('analyze', help='Analyze code for dependencies')
-    analyze_parser.add_argument("--config", type=str, default='config.yaml', help="Path to the configuration YAML file")
+    analyze_parser.add_argument("--config", type=str, default='deply.yaml', help="Path to the configuration YAML file")
     analyze_parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
                                 help="Format of the output report")
     analyze_parser.add_argument("--output", type=str, help="Output file for the report")
@@ -24,7 +24,7 @@ def main():
     args = parser.parse_args()
 
     if not args.command:
-        parser.error("No command provided. Please specify a command.")
+        args.command = 'analyze'
 
     config_path = Path(args.config)
 
@@ -39,7 +39,7 @@ def main():
     layers: dict[str, Layer] = {}
     code_element_to_layer: dict[CodeElement, str] = {}
 
-    for layer_config in config.get('layers', []):
+    for layer_config in config['layers']:
         layer_name = layer_config['name']
         collectors = layer_config.get('collectors', [])
         collected_elements: set[CodeElement] = set()
@@ -72,7 +72,7 @@ def main():
             layers[source_layer_name].dependencies.add(dependency)
 
     # Apply rules
-    rule = DependencyRule(config.get('ruleset', {}))
+    rule = DependencyRule(config['ruleset'])
     violations = rule.check(layers=layers)
 
     # Generate report
