@@ -19,16 +19,27 @@ class ClassNameRegexCollector(BaseCollector):
         collected_elements = set()
         for base_path in self.paths:
             if base_path.exists():
-                files = [f for f in base_path.rglob("*.py") if f.is_file() and not self.is_excluded(f, base_path)]
+                files = [f for f in base_path.rglob("*.py") if f.is_file()]
                 for file_path in files:
-                    tree = self.parse_file(file_path)
-                    if tree is None:
-                        continue
-                    collected_elements.update(self.match_in_file(tree, file_path))
+                    collected_elements.update(self.match_in_file(file_path))
         return collected_elements
 
-    def is_excluded(self, file_path: Path, base_path: Path) -> bool:
-        relative_path = str(file_path.relative_to(base_path))
+    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+        if self.is_excluded(file_path):
+            return set()
+
+        tree = self.parse_file(file_path)
+        if tree is None:
+            return set()
+
+        elements = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
+                elements.add(CodeElement(file=file_path, name=self._get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
+        return elements
+
+    def is_excluded(self, file_path: Path) -> bool:
+        relative_path = str(file_path.relative_to(self.paths[0]))
         return any(pattern.search(relative_path) for pattern in self.exclude_files) or \
                (self.exclude_regex and self.exclude_regex.match(relative_path))
 
@@ -39,16 +50,15 @@ class ClassNameRegexCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
-        elements = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
-                elements.add(CodeElement(file=file_path, name=self._get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
-        return elements
-
     def _get_full_name(self, node):
         names = []
-        while isinstance(node, (ast.ClassDef, ast.FunctionDef)):
-            names.append(node.name)
-            node = getattr(node, 'parent', None)
+        current = node
+        while isinstance(current, (ast.ClassDef, ast.FunctionDef)):
+            names.append(current.name)
+            current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
