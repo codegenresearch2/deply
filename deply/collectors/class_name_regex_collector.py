@@ -26,19 +26,17 @@ class ClassNameRegexCollector(BaseCollector):
                         collected_elements.update(self.match_in_file(tree, file_path))
         return collected_elements
 
-    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
-        if self.is_excluded(file_path):
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
         classes = set()
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
-                classes.add(CodeElement(file=file_path, name=self._get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
+                full_name = self._get_full_name(node)
+                code_element = CodeElement(file=file_path, name=full_name, element_type='class', line=node.lineno, column=node.col_offset)
+                classes.add(code_element)
         return classes
-
-    def is_excluded(self, file_path: Path) -> bool:
-        relative_path = str(file_path.relative_to(self.paths[0]))
-        return (self.exclude_regex and self.exclude_regex.match(relative_path)) or any(pattern.search(relative_path) for pattern in self.exclude_files)
 
     def parse_file(self, file_path: Path):
         try:
@@ -54,8 +52,3 @@ class ClassNameRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
-
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
