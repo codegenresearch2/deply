@@ -33,20 +33,20 @@ def main():
     config = ConfigParser(config_path).parse()
 
     # Set default paths if they are empty
-    if not config.get('paths'):
-        config['paths'] = ['./']
+    if not config.get('deply', {}).get('paths'):
+        config['deply']['paths'] = ['./']
 
     # Collect code elements and organize them by layers
     layers: dict[str, Layer] = {}
     code_element_to_layer: dict[CodeElement, str] = {}
 
-    for layer_config in config.get('layers', []):
+    for layer_config in config.get('deply', {}).get('layers', []):
         layer_name = layer_config['name']
         collectors = layer_config.get('collectors', [])
         collected_elements: set[CodeElement] = set()
 
         for collector_config in collectors:
-            collector = CollectorFactory.create(collector_config, config['paths'], config.get('exclude_files', []))
+            collector = CollectorFactory.create(collector_config, config['deply']['paths'], config['deply'].get('exclude_files', []))
             collected = collector.collect()
             collected_elements.update(collected)
 
@@ -73,7 +73,7 @@ def main():
             layers[source_layer_name].dependencies.add(dependency)
 
     # Apply rules
-    rule = DependencyRule(config.get('ruleset', {}))
+    rule = DependencyRule(config.get('deply', {}).get('ruleset', {}))
     violations = rule.check(layers=layers)
 
     # Generate report
