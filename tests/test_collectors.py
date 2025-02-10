@@ -3,7 +3,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-
+import ast
 import yaml
 
 from deply.collectors import FileRegexCollector, ClassInheritsCollector
@@ -12,7 +12,6 @@ from deply.collectors.class_name_regex_collector import ClassNameRegexCollector
 from deply.collectors.decorator_usage_collector import DecoratorUsageCollector
 from deply.collectors.directory_collector import DirectoryCollector
 from deply.main import main
-
 
 class TestCollectors(unittest.TestCase):
     def setUp(self):
@@ -59,6 +58,20 @@ class TestCollectors(unittest.TestCase):
     def tearDown(self):
         # Remove temporary directory
         shutil.rmtree(self.test_dir)
+
+    def collect_elements_from_file(self, file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as file:
+                file_content = file.read()
+            tree = ast.parse(file_content, filename=str(file_path))
+            elements = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.ClassDef):
+                    elements.append(node.name)
+            return elements
+        except Exception as e:
+            print(f"Error parsing {file_path}: {e}")
+            return []
 
     def test_class_inherits_collector(self):
         collector_config = {
@@ -228,7 +241,6 @@ class TestCollectors(unittest.TestCase):
                 sys.stdout, sys.stderr = old_out, old_err
 
         return _capture_output()
-
 
 if __name__ == '__main__':
     unittest.main()
