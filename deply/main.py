@@ -3,7 +3,6 @@ import logging
 import sys
 from pathlib import Path
 import re
-import ast
 
 from deply import __version__
 from deply.rules import RuleFactory
@@ -58,7 +57,7 @@ def main():
     config = ConfigParser(config_path).parse()
 
     # Collect paths and excluded files
-    paths = config.get('paths', [])
+    paths = [Path(path) for path in config.get('paths', [])]
     exclude_files_patterns = config.get('exclude_files', [])
     exclude_files = [re.compile(pattern) for pattern in exclude_files_patterns]
 
