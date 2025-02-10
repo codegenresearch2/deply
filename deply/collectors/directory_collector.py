@@ -24,7 +24,8 @@ class DirectoryCollector(BaseCollector):
         all_files = self.get_all_files()
 
         for file_path in all_files:
-            elements = self.match_in_file(file_path)
+            file_ast = self.parse_file(file_path)
+            elements = self.match_in_file(file_ast, file_path)
             collected_elements.update(elements)
 
         return collected_elements
@@ -52,13 +53,12 @@ class DirectoryCollector(BaseCollector):
         relative_path = file_path.relative_to(base_path)
         return any(relative_path.parts[0] == directory for directory in self.directories)
 
-    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         # Apply collector-specific exclude pattern
         if self.exclude_regex and self.exclude_regex.match(str(file_path)):
             return set()
 
         elements = set()
-        file_ast = self.parse_file(file_path)
 
         if not self.element_type or self.element_type == 'class':
             elements.update(self.get_class_names(file_ast, file_path))
@@ -80,7 +80,6 @@ class DirectoryCollector(BaseCollector):
 
     def get_class_names(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         classes = set()
-        import_aliases = get_import_aliases(tree)
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 full_name = self._get_full_name(node)
@@ -92,18 +91,6 @@ class DirectoryCollector(BaseCollector):
                     column=node.col_offset
                 )
                 classes.add(code_element)
-
-                # Add base classes to the set
-                for base in node.bases:
-                    base_name = get_base_name(base, import_aliases)
-                    base_code_element = CodeElement(
-                        file=file_path,
-                        name=base_name,
-                        element_type='class',
-                        line=node.lineno,
-                        column=node.col_offset
-                    )
-                    classes.add(base_code_element)
         return classes
 
     def get_function_names(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
