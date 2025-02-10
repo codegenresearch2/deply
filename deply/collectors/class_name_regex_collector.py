@@ -30,11 +30,11 @@ class ClassNameRegexCollector(BaseCollector):
         if self.is_excluded(file_path):
             return set()
 
-        elements = set()
+        classes = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
-                elements.add(CodeElement(file=file_path, name=self._get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
-        return elements
+                classes.add(CodeElement(file=file_path, name=self._get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
+        return classes
 
     def is_excluded(self, file_path: Path) -> bool:
         relative_path = str(file_path.relative_to(self.paths[0]))
@@ -54,3 +54,8 @@ class ClassNameRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
