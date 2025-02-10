@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from pathlib import Path
 import yaml
-import ast
 
 from deply.collectors import FileRegexCollector, ClassInheritsCollector
 from deply.collectors.bool_collector import BoolCollector
@@ -60,24 +59,25 @@ class TestCollectors(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def run_collector(self, collector_config, paths, exclude_files):
-        collector_type = collector_config['type']
+        collector_type = collector_config.pop('type')
         if collector_type == 'class_inherits':
-            collector = ClassInheritsCollector(collector_config, paths, exclude_files)
+            collector = ClassInheritsCollector(**collector_config)
         elif collector_type == 'file_regex':
-            collector = FileRegexCollector(collector_config, paths, exclude_files)
+            collector = FileRegexCollector(**collector_config)
         elif collector_type == 'class_name_regex':
-            collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
+            collector = ClassNameRegexCollector(**collector_config)
         elif collector_type == 'decorator_usage':
-            collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
+            collector = DecoratorUsageCollector(**collector_config)
         elif collector_type == 'directory':
-            collector = DirectoryCollector(collector_config, paths, exclude_files)
+            collector = DirectoryCollector(**collector_config)
+        elif collector_type == 'bool':
+            collector = BoolCollector(**collector_config)
         else:
             raise ValueError(f"Unknown collector type: {collector_type}")
-        return collector.collect()
+        return collector.collect(paths, exclude_files)
 
     def test_class_inherits_collector(self):
         collector_config = {
-            'type': 'class_inherits',
             'base_class': 'BaseModel',
         }
         paths = [str(self.test_project_dir)]
@@ -89,7 +89,6 @@ class TestCollectors(unittest.TestCase):
 
     def test_file_regex_collector(self):
         collector_config = {
-            'type': 'file_regex',
             'regex': r'.*controller.py$',
         }
         paths = [str(self.test_project_dir)]
@@ -101,7 +100,6 @@ class TestCollectors(unittest.TestCase):
 
     def test_class_name_regex_collector(self):
         collector_config = {
-            'type': 'class_name_regex',
             'class_name_regex': '^User.*',
         }
         paths = [str(self.test_project_dir)]
@@ -113,7 +111,6 @@ class TestCollectors(unittest.TestCase):
 
     def test_directory_collector(self):
         collector_config = {
-            'type': 'directory',
             'directories': ['services'],
         }
         paths = [str(self.test_project_dir)]
@@ -125,7 +122,6 @@ class TestCollectors(unittest.TestCase):
 
     def test_decorator_usage_collector(self):
         collector_config = {
-            'type': 'decorator_usage',
             'decorator_name': 'login_required',
         }
         paths = [str(self.test_project_dir)]
@@ -137,7 +133,6 @@ class TestCollectors(unittest.TestCase):
 
         # Test with decorator_regex
         collector_config = {
-            'type': 'decorator_usage',
             'decorator_regex': '^.*decorator$',
         }
         collected_elements = self.run_collector(collector_config, paths, exclude_files)
@@ -147,7 +142,6 @@ class TestCollectors(unittest.TestCase):
 
     def test_class_name_regex_collector_no_matches(self):
         collector_config = {
-            'type': 'class_name_regex',
             'class_name_regex': '^NonExistentClass.*',
         }
         paths = [str(self.test_project_dir)]
@@ -157,7 +151,6 @@ class TestCollectors(unittest.TestCase):
 
     def test_bool_collector(self):
         collector_config = {
-            'type': 'bool',
             'must': [
                 {'type': 'class_name_regex', 'class_name_regex': '.*Service$'}
             ],
