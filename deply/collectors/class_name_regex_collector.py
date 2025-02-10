@@ -24,7 +24,7 @@ class ClassNameRegexCollector(BaseCollector):
             tree = self.parse_file(file_path)
             if tree is None:
                 continue
-            collected_elements.update(self.match_in_file(tree, file_path))
+            collected_elements.update(self.find_matching_classes(tree, file_path))
 
         return collected_elements
 
@@ -48,11 +48,16 @@ class ClassNameRegexCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
+    def find_matching_classes(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         elements = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
-                elements.add(CodeElement(file=file_path, name=get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
+                elements.add(CodeElement(file=file_path, name=self.get_full_name(node), element_type='class', line=node.lineno, column=node.col_offset))
         return elements
 
-I have rewritten the code according to the provided rules. I have included file AST processing and added concise comments for clarity. I have streamlined the matching process and reduced redundancy in element collection by using a dedicated method for collection. I have also used the `get_full_name` function from `deply.utils.ast_utils` to get the full name of the class.
+    def get_full_name(self, node):
+        names = []
+        while isinstance(node, (ast.ClassDef, ast.FunctionDef)):
+            names.append(node.name)
+            node = getattr(node, 'parent', None)
+        return '.'.join(reversed(names))
