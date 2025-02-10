@@ -2,11 +2,9 @@ import ast
 import re
 from pathlib import Path
 from typing import List, Set, Tuple
-
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
 from deply.utils.ast_utils import get_import_aliases, get_base_name
-
 
 class ClassInheritsCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
@@ -17,43 +15,15 @@ class ClassInheritsCollector(BaseCollector):
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def collect(self) -> Set[CodeElement]:
-        collected_elements = set()
-        all_files = self.get_all_files()
+    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
+            return set()
 
-        for file_path, base_path in all_files:
-            tree = self.parse_file(file_path)
-            if tree is None:
-                continue
-            collected_elements.update(self.get_classes_inheriting(tree, file_path))
+        tree = self.parse_file(file_path)
+        if tree is None:
+            return set()
 
-        return collected_elements
-
-    def get_all_files(self) -> List[Tuple[Path, Path]]:
-        all_files = []
-
-        for base_path in self.paths:
-            if not base_path.exists():
-                continue
-
-            files = [f for f in base_path.rglob("*.py") if f.is_file()]
-
-            def is_excluded(file_path: Path) -> bool:
-                relative_path = str(file_path.relative_to(base_path))
-                return any(pattern.search(relative_path) for pattern in self.exclude_files)
-
-            files = [f for f in files if not is_excluded(f)]
-
-            if self.exclude_regex:
-                files = [
-                    f for f in files
-                    if not self.exclude_regex.match(str(f.relative_to(base_path)))
-                ]
-
-            files_with_base = [(f, base_path) for f in files]
-            all_files.extend(files_with_base)
-
-        return all_files
+        return self.get_classes_inheriting(tree, file_path)
 
     def parse_file(self, file_path: Path):
         try:
