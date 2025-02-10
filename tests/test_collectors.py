@@ -73,6 +73,10 @@ class TestCollectors(unittest.TestCase):
             print(f"Error parsing {file_path}: {e}")
             return []
 
+    def run_collector(self, collector):
+        collected_elements = collector.collect()
+        return {element.name for element in collected_elements}
+
     def test_class_inherits_collector(self):
         collector_config = {
             'base_class': 'BaseModel',
@@ -80,8 +84,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassInheritsCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        collected_class_names = {element.name for element in collected_elements}
+        collected_class_names = self.run_collector(collector)
         expected_classes = {'UserModel'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -92,8 +95,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = FileRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        collected_class_names = {element.name for element in collected_elements}
+        collected_class_names = self.run_collector(collector)
         expected_classes = {'BaseController', 'UserController'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -104,8 +106,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        collected_class_names = {element.name for element in collected_elements}
+        collected_class_names = self.run_collector(collector)
         expected_classes = {'UserController', 'UserModel', 'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -116,8 +117,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = DirectoryCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        collected_class_names = {element.name for element in collected_elements}
+        collected_class_names = self.run_collector(collector)
         expected_classes = {'BaseService', 'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
 
@@ -128,20 +128,18 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        collected_names = {element.name for element in collected_elements}
-        expected_names = {'UserController'}
-        self.assertEqual(collected_names, expected_names)
+        collected_class_names = self.run_collector(collector)
+        expected_classes = {'UserController'}
+        self.assertEqual(collected_class_names, expected_classes)
 
         # Test with decorator_regex
         collector_config = {
             'decorator_regex': '^.*decorator$',
         }
         collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        collected_names = {element.name for element in collected_elements}
-        expected_names = {'UserService', 'helper_function'}
-        self.assertEqual(collected_names, expected_names)
+        collected_class_names = self.run_collector(collector)
+        expected_classes = {'UserService', 'helper_function'}
+        self.assertEqual(collected_class_names, expected_classes)
 
     def test_class_name_regex_collector_no_matches(self):
         collector_config = {
@@ -150,8 +148,8 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        self.assertEqual(len(collected_elements), 0)
+        collected_class_names = self.run_collector(collector)
+        self.assertEqual(len(collected_class_names), 0)
 
     def test_bool_collector(self):
         collector_config = {
@@ -168,8 +166,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = BoolCollector(collector_config, paths, exclude_files)
-        collected_elements = collector.collect()
-        collected_class_names = {element.name for element in collected_elements}
+        collected_class_names = self.run_collector(collector)
         expected_classes = {'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
 
