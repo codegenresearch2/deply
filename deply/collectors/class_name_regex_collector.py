@@ -25,8 +25,7 @@ class ClassNameRegexCollector(BaseCollector):
             tree = self.parse_file(file_path)
             if tree is None:
                 continue
-            self.annotate_parent(tree)
-            classes = self.get_matching_classes(tree, file_path)
+            classes = self.match_in_file(tree, file_path)
             collected_elements.update(classes)
 
         return collected_elements
@@ -61,11 +60,13 @@ class ClassNameRegexCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def get_matching_classes(self, tree, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
         classes = set()
         import_aliases = get_import_aliases(tree)
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
+                if self.is_excluded(file_path, file_path.parent):
+                    continue
                 if self.regex.match(node.name):
                     full_name = self._get_full_name(node, import_aliases)
                     code_element = CodeElement(
@@ -86,8 +87,3 @@ class ClassNameRegexCollector(BaseCollector):
             current = getattr(current, 'parent', None)
         full_name = '.'.join(reversed(names))
         return get_base_name(full_name, import_aliases)
-
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
