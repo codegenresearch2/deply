@@ -19,7 +19,9 @@ class ConfigParser:
         config = config.get('deply', config)
 
         # Set default values for all keys that need default values
-        config.setdefault('paths', [str(self.config_path.parent)])
+        # Only set the default value if the key is not already defined
+        if 'paths' not in config:
+            config['paths'] = [str(self.config_path.parent)]
         config.setdefault('exclude_files', [])
         config.setdefault('layers', [])
         config.setdefault('ruleset', {})
