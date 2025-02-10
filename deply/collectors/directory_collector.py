@@ -2,10 +2,8 @@ import ast
 import re
 from pathlib import Path
 from typing import List, Set, Tuple
-
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
-
 
 class DirectoryCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
@@ -16,56 +14,13 @@ class DirectoryCollector(BaseCollector):
 
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.paths = [Path(p) for p in paths]
+        self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def collect(self) -> Set[CodeElement]:
-        collected_elements = set()
-        all_files = self.get_all_files()
+    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+        if self.is_excluded(file_path):
+            return set()
 
-        for file_path, base_path in all_files:
-            elements = self.get_elements_in_file(file_path)
-            collected_elements.update(elements)
-
-        return collected_elements
-
-    def get_all_files(self) -> List[Tuple[Path, Path]]:
-        all_files = []
-
-        for base_path in self.paths:
-            if not base_path.exists():
-                continue
-
-            # Collect files only in specified directories
-            for directory in self.directories:
-                dir_path = base_path / directory
-                if dir_path.exists() and dir_path.is_dir():
-                    if self.recursive:
-                        files = [f for f in dir_path.rglob('*.py') if f.is_file()]
-                    else:
-                        files = [f for f in dir_path.glob('*.py') if f.is_file()]
-
-                    # Apply global exclude patterns
-                    def is_excluded(file_path: Path) -> bool:
-                        relative_path = str(file_path.relative_to(base_path))
-                        return any(pattern.search(relative_path) for pattern in self.exclude_files)
-
-                    files = [f for f in files if not is_excluded(f)]
-
-                    # Apply collector-specific exclude pattern
-                    if self.exclude_regex:
-                        files = [
-                            f for f in files
-                            if not self.exclude_regex.match(str(f.relative_to(base_path)))
-                        ]
-
-                    # Collect files along with their base path
-                    files_with_base = [(f, base_path) for f in files]
-                    all_files.extend(files_with_base)
-
-        return all_files
-
-    def get_elements_in_file(self, file_path: Path) -> Set[CodeElement]:
         elements = set()
         tree = self.parse_file(file_path)
         if tree is None:
@@ -82,6 +37,33 @@ class DirectoryCollector(BaseCollector):
 
         return elements
 
+    def is_excluded(self, file_path: Path) -> bool:
+        relative_path = str(file_path.relative_to(self.base_paths[0]))
+        return any(pattern.search(relative_path) for pattern in self.exclude_files) or \
+               (self.exclude_regex and self.exclude_regex.search(str(file_path)))
+
+    def get_all_files(self) -> List[Tuple[Path, Path]]:
+        all_files = []
+
+        for base_path in self.base_paths:
+            if not base_path.exists():
+                continue
+
+            # Collect files only in specified directories
+            for directory in self.directories:
+                dir_path = base_path / directory
+                if dir_path.exists() and dir_path.is_dir():
+                    if self.recursive:
+                        files = [f for f in dir_path.rglob('*.py') if f.is_file()]
+                    else:
+                        files = [f for f in dir_path.glob('*.py') if f.is_file()]
+
+                    # Collect files along with their base path
+                    files_with_base = [(f, base_path) for f in files]
+                    all_files.extend(files_with_base)
+
+        return all_files
+
     def parse_file(self, file_path: Path):
         try:
             with open(file_path, 'r', encoding='utf-8') as f:
@@ -90,6 +72,7 @@ class DirectoryCollector(BaseCollector):
             return None
 
     def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
+        # self.annotate_parent(tree)  # Commented out as per oracle feedback
         classes = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
@@ -105,6 +88,7 @@ class DirectoryCollector(BaseCollector):
         return classes
 
     def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
+        # self.annotate_parent(tree)  # Commented out as per oracle feedback
         functions = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
@@ -142,8 +126,3 @@ class DirectoryCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
-
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
