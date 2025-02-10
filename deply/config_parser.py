@@ -15,11 +15,13 @@ class ConfigParser:
         with self.config_path.open("r") as f:
             config = yaml.safe_load(f)
 
-        # Use get method to access 'deply' key with a default value
-        config = config.get('deply', {})
+        # Use get method to access 'deply' key with the original config as default
+        config = config.get('deply', config)
 
         # Set default values for 'paths', 'exclude_files', 'layers', and 'ruleset'
-        config.setdefault('paths', [str(self.config_path.parent)])
+        # only if they are not already defined in the configuration
+        if not config.get('paths'):
+            config['paths'] = [str(self.config_path.parent)]
         config.setdefault('exclude_files', [])
         config.setdefault('layers', [])
         config.setdefault('ruleset', {})
