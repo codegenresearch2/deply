@@ -71,7 +71,7 @@ def main():
 
     # Apply rules
     rule = DependencyRule(config['ruleset'])
-    violations = rule.check(layers)
+    violations = rule.check(layers=layers)
 
     # Generate report
     report_generator = ReportGenerator(violations)
@@ -86,9 +86,9 @@ def main():
 
     # Exit with appropriate status
     if violations:
-        exit(1)
+        sys.exit(1)
     else:
-        exit(0)
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
