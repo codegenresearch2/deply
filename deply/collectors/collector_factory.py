@@ -1,27 +1,43 @@
-from typing import Dict, Any, List
+from typing import Dict, Any
+
 from .base_collector import BaseCollector
-from .class_inherits_collector import ClassInheritsCollector
-from .class_name_regex_collector import ClassNameRegexCollector
-from .directory_collector import DirectoryCollector
-from .file_regex_collector import FileRegexCollector
-from .decorator_usage_collector import DecoratorUsageCollector
-from .bool_collector import BoolCollector
+from .collectors import (
+    FileRegexCollector,
+    ClassInheritsCollector,
+    ClassNameRegexCollector,
+    DirectoryCollector,
+    DecoratorUsageCollector
+)
 
 class CollectorFactory:
-    @staticmethod
-    def create(config: Dict[str, Any], paths: List[str], exclude_files: List[str]) -> BaseCollector:
+    COLLECTORS = {
+        "file_regex": FileRegexCollector,
+        "class_inherits": ClassInheritsCollector,
+        "class_name_regex": ClassNameRegexCollector,
+        "directory": DirectoryCollector,
+        "decorator_usage": DecoratorUsageCollector,
+        "bool": "BoolCollector"
+    }
+
+    @classmethod
+    def create(cls, config: Dict[str, Any], paths: list[str], exclude_files: list[str]) -> BaseCollector:
         collector_type = config.get("type")
-        if collector_type == "file_regex":
-            return FileRegexCollector(config, paths, exclude_files)
-        elif collector_type == "class_inherits":
-            return ClassInheritsCollector(config, paths, exclude_files)
-        elif collector_type == "class_name_regex":
-            return ClassNameRegexCollector(config, paths, exclude_files)
-        elif collector_type == "directory":
-            return DirectoryCollector(config, paths, exclude_files)
-        elif collector_type == "decorator_usage":
-            return DecoratorUsageCollector(config, paths, exclude_files)
-        elif collector_type == "bool":
-            return BoolCollector(config, paths, exclude_files)
-        else:
+        collector_class = cls.COLLECTORS.get(collector_type)
+
+        if collector_class is None:
             raise ValueError(f"Unknown collector type: {collector_type}")
+
+        if collector_type == "bool":
+            from .bool_collector import BoolCollector
+            collector_class = BoolCollector
+
+        return collector_class(config, paths, exclude_files)
+
+
+In the rewritten code, I have:
+
+1. Imported the collectors directly from the `collectors` module to improve code readability and maintainability.
+2. Created a `COLLECTORS` dictionary to map collector types to their corresponding classes. This reduces redundant operations in the `create` method.
+3. Used the `classmethod` decorator for the `create` method to allow it to be called on the class itself, rather than on an instance of the class. This makes the method more flexible and reusable.
+4. Moved the import statement for the `BoolCollector` inside the `create` method to avoid unnecessary imports when the `BoolCollector` is not needed.
+5. Raised a `ValueError` if the collector type is unknown, which improves error handling and makes the code more robust.
