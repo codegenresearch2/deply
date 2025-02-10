@@ -1,11 +1,9 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
-
+from typing import List, Set
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
-
 
 class DecoratorUsageCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
@@ -14,7 +12,6 @@ class DecoratorUsageCollector(BaseCollector):
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
         self.decorator_regex = re.compile(self.decorator_regex_pattern) if self.decorator_regex_pattern else None
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
-
         self.paths = [Path(p) for p in paths]
 
     def collect(self) -> Set[CodeElement]:
@@ -25,8 +22,7 @@ class DecoratorUsageCollector(BaseCollector):
             tree = self.parse_file(file_path)
             if tree is None:
                 continue
-            self.annotate_parent(tree)
-            elements = self.get_elements_with_decorator(tree, file_path)
+            elements = self.match_in_file(tree, file_path)
             collected_elements.update(elements)
 
         return collected_elements
@@ -55,12 +51,12 @@ class DecoratorUsageCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def get_elements_with_decorator(self, tree, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
         elements = set()
         for node in ast.walk(tree):
             if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
                 for decorator in node.decorator_list:
-                    decorator_name = self._get_full_name(decorator)
+                    decorator_name = self._get_decorator_name(decorator)
                     if self.decorator_name and decorator_name == self.decorator_name:
                         full_name = self._get_full_name(node)
                         code_element = CodeElement(
@@ -83,23 +79,21 @@ class DecoratorUsageCollector(BaseCollector):
                         elements.add(code_element)
         return elements
 
-    def _get_full_name(self, node):
-        if isinstance(node, ast.Name):
-            return node.id
-        elif isinstance(node, ast.Attribute):
-            value = self._get_full_name(node.value)
-            return f"{value}.{node.attr}" if value else node.attr
-        elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            names = []
-            current = node
-            while current:
-                names.append(current.name)
-                current = getattr(current, 'parent', None)
-            return '.'.join(reversed(names))
-        elif isinstance(node, ast.Call):
-            return self._get_full_name(node.func)
+    def _get_decorator_name(self, decorator):
+        if isinstance(decorator, ast.Name):
+            return decorator.id
+        elif isinstance(decorator, ast.Attribute):
+            return f"{self._get_decorator_name(decorator.value)}.{decorator.attr}"
         else:
             return ''
+
+    def _get_full_name(self, node):
+        names = []
+        current = node
+        while current:
+            names.append(current.name)
+            current = getattr(current, 'parent', None)
+        return '.'.join(reversed(names))
 
     def annotate_parent(self, tree):
         for node in ast.walk(tree):
