@@ -1,4 +1,3 @@
-import ast
 import shutil
 import sys
 import tempfile
@@ -6,44 +5,39 @@ import unittest
 from pathlib import Path
 
 import yaml
+from contextlib import contextmanager
+from io import StringIO
 
-from deply.collectors import FileRegexCollector, ClassInheritsCollector
-from deply.collectors.bool_collector import BoolCollector
-from deply.collectors.class_name_regex_collector import ClassNameRegexCollector
-from deply.collectors.decorator_usage_collector import DecoratorUsageCollector
-from deply.collectors.directory_collector import DirectoryCollector
+from deply.collectors import FileRegexCollector, ClassInheritsCollector, BoolCollector, ClassNameRegexCollector, DecoratorUsageCollector, DirectoryCollector
 from deply.main import main
-
 
 class TestCollectors(unittest.TestCase):
     def setUp(self):
-        # Create a temporary directory
         self.test_dir = tempfile.mkdtemp()
         self.test_project_dir = Path(self.test_dir) / 'test_project'
         self.test_project_dir.mkdir()
+        self.create_test_files()
 
-        # Create directories
-        (self.test_project_dir / 'controllers').mkdir()
-        (self.test_project_dir / 'models').mkdir()
-        (self.test_project_dir / 'services').mkdir()
-        (self.test_project_dir / 'excluded_folder_name').mkdir()
-        (self.test_project_dir / 'utilities').mkdir()
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
 
-        # Create files in controllers
+    def create_test_files(self):
+        directories = ['controllers', 'models', 'services', 'excluded_folder_name', 'utilities']
+        for directory in directories:
+            (self.test_project_dir / directory).mkdir()
+
         base_controller_py = self.test_project_dir / 'controllers' / 'base_controller.py'
         base_controller_py.write_text('class BaseController:\n    pass\n')
 
         user_controller_py = self.test_project_dir / 'controllers' / 'user_controller.py'
         user_controller_py.write_text('@login_required\nclass UserController(BaseController):\n    pass\n')
 
-        # Create files in models
         base_model_py = self.test_project_dir / 'models' / 'base_model.py'
         base_model_py.write_text('class BaseModel:\n    pass\n')
 
         user_model_py = self.test_project_dir / 'models' / 'user_model.py'
         user_model_py.write_text('class UserModel(BaseModel):\n    pass\n')
 
-        # Create files in services
         base_service_py = self.test_project_dir / 'services' / 'base_service.py'
         base_service_py.write_text('class BaseService:\n    pass\n')
 
@@ -53,177 +47,65 @@ class TestCollectors(unittest.TestCase):
         deprecated_service_py = self.test_project_dir / 'excluded_folder_name' / 'deprecated_service.py'
         deprecated_service_py.write_text('@deprecated_service\nclass DeprecatedService(BaseService):\n    pass\n')
 
-        # Create utility functions
         utils_py = self.test_project_dir / 'utilities' / 'utils.py'
         utils_py.write_text('@utility_decorator\ndef helper_function():\n    pass\n')
 
-    def tearDown(self):
-        # Remove temporary directory
-        shutil.rmtree(self.test_dir)
-
-    def run_collector(self, collector, paths, exclude_files):
-        all_elements = set()
-        for base_path_str in paths:
-            base_path = Path(base_path_str)
-            if not base_path.exists():
-                continue
-            files = [f for f in base_path.rglob("*.py") if f.is_file()]
-
-            # Apply global exclude patterns
-            def is_excluded(file_path: Path) -> bool:
-                relative_path = str(file_path.relative_to(base_path))
-                return any(pattern.search(relative_path) for pattern in exclude_files)
-
-            files = [f for f in files if not is_excluded(f)]
-
-            for f in files:
-                try:
-                    with open(f, "r", encoding="utf-8") as file:
-                        file_content = file.read()
-                    file_ast = ast.parse(file_content, filename=str(f))
-                except:
-                    continue
-
-                matched = collector.match_in_file(file_ast, f)
-                all_elements.update(matched)
-
-        return all_elements
-
     def test_class_inherits_collector(self):
         collector_config = {'base_class': 'BaseModel'}
-        paths = [str(self.test_project_dir)]
-        exclude_files = []
-        collector = ClassInheritsCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        collected_class_names = {element.name for element in collected_elements}
-        expected_classes = {'UserModel'}
-        self.assertEqual(collected_class_names, expected_classes)
+        self.assert_collector(ClassInheritsCollector, collector_config, {'UserModel'})
 
     def test_file_regex_collector(self):
-        collector_config = {
-            'regex': r'.*controller.py$',
-        }
-        paths = [str(self.test_project_dir)]
-        exclude_files = []
-        collector = FileRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        collected_class_names = {element.name for element in collected_elements}
-        expected_classes = {'BaseController', 'UserController'}
-        self.assertEqual(collected_class_names, expected_classes)
+        collector_config = {'regex': r'.*controller.py$'}
+        self.assert_collector(FileRegexCollector, collector_config, {'BaseController', 'UserController'})
 
     def test_class_name_regex_collector(self):
-        collector_config = {
-            'class_name_regex': '^User.*',
-        }
-        paths = [str(self.test_project_dir)]
-        exclude_files = []
-        collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        collected_class_names = {element.name for element in collected_elements}
-        expected_classes = {'UserController', 'UserModel', 'UserService'}
-        self.assertEqual(collected_class_names, expected_classes)
+        collector_config = {'class_name_regex': '^User.*'}
+        self.assert_collector(ClassNameRegexCollector, collector_config, {'UserController', 'UserModel', 'UserService'})
 
     def test_directory_collector(self):
-        collector_config = {
-            'directories': ['services'],
-        }
-        paths = [str(self.test_project_dir)]
-        exclude_files = []
-        collector = DirectoryCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        collected_class_names = {element.name for element in collected_elements}
-        expected_classes = {'BaseService', 'UserService'}
-        self.assertEqual(collected_class_names, expected_classes)
+        collector_config = {'directories': ['services']}
+        self.assert_collector(DirectoryCollector, collector_config, {'BaseService', 'UserService'})
 
     def test_decorator_usage_collector(self):
-        collector_config = {
-            'decorator_name': 'login_required',
-        }
-        paths = [str(self.test_project_dir)]
-        exclude_files = []
-        collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        collected_names = {element.name for element in collected_elements}
-        expected_names = {'UserController'}
-        self.assertEqual(collected_names, expected_names)
+        collector_config = {'decorator_name': 'login_required'}
+        self.assert_collector(DecoratorUsageCollector, collector_config, {'UserController'})
 
-        # Test with decorator_regex
-        collector_config = {
-            'decorator_regex': '^.*decorator$',
-        }
-        collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        collected_names = {element.name for element in collected_elements}
-        expected_names = {'UserService', 'helper_function'}
-        self.assertEqual(collected_names, expected_names)
+        collector_config = {'decorator_regex': '^.*decorator$'}
+        self.assert_collector(DecoratorUsageCollector, collector_config, {'UserService', 'helper_function'})
 
     def test_class_name_regex_collector_no_matches(self):
-        collector_config = {
-            'class_name_regex': '^NonExistentClass.*',
-        }
-        paths = [str(self.test_project_dir)]
-        exclude_files = []
-        collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        self.assertEqual(len(collected_elements), 0)
+        collector_config = {'class_name_regex': '^NonExistentClass.*'}
+        self.assert_collector(ClassNameRegexCollector, collector_config, set())
 
     def test_bool_collector(self):
         collector_config = {
             'type': 'bool',
-            'must': [
-                {'type': 'class_name_regex', 'class_name_regex': '.*Service$'}
-            ],
+            'must': [{'type': 'class_name_regex', 'class_name_regex': '.*Service$'}],
             'must_not': [
                 {'type': 'file_regex', 'regex': '.*/base_service.py'},
                 {'type': 'file_regex', 'regex': '.*/excluded_folder_name/.*'},
                 {'type': 'decorator_usage', 'decorator_name': 'deprecated_service'}
             ]
         }
-        paths = [str(self.test_project_dir)]
-        exclude_files = []
-        collector = BoolCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
-        collected_class_names = {element.name for element in collected_elements}
-        expected_classes = {'UserService'}
-        self.assertEqual(collected_class_names, expected_classes)
+        self.assert_collector(BoolCollector, collector_config, {'UserService'})
 
     def test_directory_collector_with_rules(self):
         user_controller_py = self.test_project_dir / 'controllers' / 'user_controller.py'
         user_controller_py.write_text(
             'from ..models.user_model import UserModel\n'
             'class UserController:\n'
-            '    def __init__(self):\n'
-            '        self.model = UserModel()\n'
+            '    def get_user(self):\n'
+            '        return UserModel()\n'
         )
         config_yaml = Path(self.test_dir) / 'config_directory_collector_rules.yaml'
         config_data = {
             'deply': {
                 'paths': [str(self.test_project_dir)],
                 'layers': [
-                    {
-                        'name': 'models_layer',
-                        'collectors': [
-                            {
-                                'type': 'directory',
-                                'directories': ['models'],
-                            }
-                        ]
-                    },
-                    {
-                        'name': 'controllers_layer',
-                        'collectors': [
-                            {
-                                'type': 'directory',
-                                'directories': ['controllers'],
-                            }
-                        ]
-                    }
+                    {'name': 'models_layer', 'collectors': [{'type': 'directory', 'directories': ['models']}]},
+                    {'name': 'controllers_layer', 'collectors': [{'type': 'directory', 'directories': ['controllers']}]}
                 ],
-                'ruleset': {
-                    'controllers_layer': {
-                        'disallow': ['models_layer']
-                    }
-                }
+                'ruleset': {'controllers_layer': {'disallow': ['models_layer']}}
             }
         }
         with config_yaml.open('w') as f:
@@ -238,12 +120,16 @@ class TestCollectors(unittest.TestCase):
         self.assertEqual(exit_code, 1)
         self.assertIn("Layer 'controllers_layer' is not allowed to depend on layer 'models_layer'", output)
 
+    def assert_collector(self, collector_class, collector_config, expected_classes):
+        paths = [str(self.test_project_dir)]
+        exclude_files = []
+        collector = collector_class(collector_config, paths, exclude_files)
+        collected_elements = collector.collect()
+        collected_class_names = {element.name for element in collected_elements}
+        self.assertEqual(collected_class_names, expected_classes)
+
     @staticmethod
     def capture_output():
-        from contextlib import contextmanager
-        from io import StringIO
-        import sys
-
         @contextmanager
         def _capture_output():
             new_out, new_err = StringIO(), StringIO()
@@ -253,9 +139,7 @@ class TestCollectors(unittest.TestCase):
                 yield sys.stdout, sys.stderr
             finally:
                 sys.stdout, sys.stderr = old_out, old_err
-
         return _capture_output()
-
 
 if __name__ == '__main__':
     unittest.main()
