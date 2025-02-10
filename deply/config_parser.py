@@ -9,11 +9,17 @@ class ConfigParser:
         self.config_path = config_path
 
     def parse(self) -> Dict[str, Any]:
+        """
+        Parse the configuration file and return a dictionary with the configuration.
+        """
         with self.config_path.open("r") as f:
             config = yaml.safe_load(f)
 
-        config = config['deply']
-        config.setdefault('paths', [])
+        # Use get method to access 'deply' key with a default value
+        config = config.get('deply', {})
+
+        # Set default values for 'paths', 'exclude_files', 'layers', and 'ruleset'
+        config.setdefault('paths', [str(self.config_path.parent)])
         config.setdefault('exclude_files', [])
         config.setdefault('layers', [])
         config.setdefault('ruleset', {})
@@ -47,6 +53,3 @@ def main(args=None):
 
 if __name__ == "__main__":
     main()
-
-
-In the rewritten code, I have added an `argparse` subparser for the `analyze` command. This command has arguments for the configuration file path, report format, and output file. I have also modified the `main` function to accept arguments, which allows for better testing and organization. The `ConfigParser` class remains unchanged.
