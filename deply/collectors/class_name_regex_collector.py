@@ -21,6 +21,7 @@ class ClassNameRegexCollector(BaseCollector):
             tree = self.parse_file(file_path)
             if tree is None:
                 continue
+            # self.annotate_parent(tree)  # Commented out as per gold code
             classes = self.match_in_file(tree, file_path)
             collected_elements.update(classes)
 
