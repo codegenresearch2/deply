@@ -13,9 +13,8 @@ class ClassNameRegexCollector(BaseCollector):
         self.regex = re.compile(self.regex_pattern)
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-    def get_all_files(self) -> List[Path]:
-        all_files = []
-
+    def collect(self) -> Set[CodeElement]:
+        collected_elements = set()
         for base_path in self.paths:
             if not base_path.exists():
                 continue
@@ -25,9 +24,14 @@ class ClassNameRegexCollector(BaseCollector):
             # Apply exclude patterns
             files = [f for f in files if not self.is_excluded(f, base_path)]
 
-            all_files.extend(files)
+            for file_path in files:
+                tree = self.parse_file(file_path)
+                if tree is None:
+                    continue
+                classes = self.match_in_file(tree, file_path)
+                collected_elements.update(classes)
 
-        return all_files
+        return collected_elements
 
     def is_excluded(self, file_path: Path, base_path: Path) -> bool:
         relative_path = str(file_path.relative_to(base_path))
@@ -67,3 +71,8 @@ class ClassNameRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
