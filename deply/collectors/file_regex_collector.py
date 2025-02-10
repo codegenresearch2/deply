@@ -47,13 +47,13 @@ class FileRegexCollector(BaseCollector):
         return all_files
 
     def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
-        # Apply collector-specific exclude pattern
-        if self.exclude_regex and self.exclude_regex.match(str(file_path)):
-            return set()
-
         # Check if the file matches the regex pattern
         relative_path = str(file_path.relative_to(self.paths[0]))
         if not self.regex.match(relative_path) and not self.regex.match(str(file_path)):
+            return set()
+
+        # Apply collector-specific exclude pattern
+        if self.exclude_regex and self.exclude_regex.match(str(file_path)):
             return set()
 
         elements = set()
