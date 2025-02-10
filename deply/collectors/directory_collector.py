@@ -7,7 +7,7 @@ from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
 
 class DirectoryCollector(BaseCollector):
-    def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
+    def __init__(self, config: dict, base_paths: List[str], exclude_files: List[str]):
         self.directories = config.get("directories", [])
         self.recursive = config.get("recursive", True)
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
@@ -15,12 +15,12 @@ class DirectoryCollector(BaseCollector):
 
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.paths = [Path(p) for p in paths]
+        self.base_paths = [Path(p) for p in base_paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         # Exclude files based on global and collector-specific patterns
-        if not self.is_file_included(file_path):
+        if self.is_file_excluded(file_path):
             return set()
 
         elements = set()
@@ -90,24 +90,24 @@ class DirectoryCollector(BaseCollector):
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
 
-    def is_file_included(self, file_path: Path) -> bool:
+    def is_file_excluded(self, file_path: Path) -> bool:
         # Check against global exclude patterns
         if any(pattern.search(str(file_path)) for pattern in self.exclude_files):
-            return False
+            return True
 
         # Check against collector-specific exclude pattern
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
-            return False
+            return True
 
         # Check if the file is within the specified directories
         if self.directories and not self.is_in_directories(file_path):
-            return False
+            return True
 
-        return True
+        return False
 
     def is_in_directories(self, file_path: Path) -> bool:
         # Check if the file is within any of the specified directories
-        for base_path in self.paths:
+        for base_path in self.base_paths:
             for directory in self.directories:
                 if file_path.is_relative_to(base_path / directory):
                     return True
