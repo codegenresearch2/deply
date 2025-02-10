@@ -44,10 +44,6 @@ class DirectoryCollector(BaseCollector):
             # Apply global exclude patterns
             files = [f for f in files if not any(pattern.search(str(f.relative_to(path))) for pattern in self.exclude_files)]
 
-            # Apply collector-specific exclude pattern
-            if self.exclude_regex:
-                files = [f for f in files if not self.exclude_regex.match(str(f.relative_to(path)))]
-
             all_files.extend(files)
 
         return all_files
@@ -56,12 +52,13 @@ class DirectoryCollector(BaseCollector):
         relative_path = file_path.relative_to(base_path)
         return any(relative_path.parts[0] == directory for directory in self.directories)
 
-    def match_in_file(self, file_path: Path, file_ast: ast.AST) -> Set[CodeElement]:
+    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
         # Apply collector-specific exclude pattern
         if self.exclude_regex and self.exclude_regex.match(str(file_path)):
             return set()
 
         elements = set()
+        file_ast = self.parse_file(file_path)
 
         if not self.element_type or self.element_type == 'class':
             elements.update(self.get_class_names(file_ast, file_path))
@@ -73,6 +70,13 @@ class DirectoryCollector(BaseCollector):
             elements.update(self.get_variable_names(file_ast, file_path))
 
         return elements
+
+    def parse_file(self, file_path: Path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                return ast.parse(f.read(), filename=str(file_path))
+        except (SyntaxError, UnicodeDecodeError):
+            return None
 
     def get_class_names(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         classes = set()
