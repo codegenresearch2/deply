@@ -2,6 +2,7 @@ import argparse
 import logging
 import sys
 import re
+import ast
 from pathlib import Path
 from typing import List
 
@@ -29,7 +30,8 @@ class Deply:
         collectors = []
         for layer_config in self.config['layers']:
             for collector_config in layer_config.get('collectors', []):
-                collectors.append(CollectorFactory.create(collector_config, self.config['paths'], self.config['exclude_files']))
+                collector = CollectorFactory.create(collector_config)
+                collectors.append(collector)
         return collectors
 
     def collect_code_elements(self):
@@ -38,7 +40,7 @@ class Deply:
             collected_elements = set()
             for collector in self.collectors:
                 if re.match(collector.file_regex, layer_config['name']):
-                    collected = collector.collect()
+                    collected = collector.collect(self.config['paths'], self.config['exclude_files'])
                     collected_elements.update(collected)
             layer = Layer(name=layer_name, code_elements=collected_elements, dependencies=set())
             self.layers[layer_name] = layer
