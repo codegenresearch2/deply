@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 from typing import Set
+from pathlib import Path
 from ..models.code_element import CodeElement
+import ast
 
 class BaseCollector(ABC):
     @abstractmethod
