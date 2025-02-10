@@ -13,11 +13,11 @@ class ConfigParser:
             config = yaml.safe_load(f)
 
         config = config.get('deply', config)
-        if 'paths' not in config:
-            config['paths'] = [str(self.config_path.parent)]
         config.setdefault('exclude_files', [])
         config.setdefault('layers', [])
         config.setdefault('ruleset', {})
+        if 'paths' not in config or not config['paths']:
+            config['paths'] = [str(self.config_path.parent)]
 
         return config
 
