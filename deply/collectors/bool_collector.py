@@ -12,6 +12,9 @@ class BoolCollector(BaseCollector):
         self.any_of_configs = config.get('any_of', [])
         self.must_not_configs = config.get('must_not', [])
         
+        # Import CollectorFactory at the top of the file or in the __init__ method
+        from .collector_factory import CollectorFactory
+        
         # Pre-instantiate sub-collectors
         self.must_collectors = [CollectorFactory.create(cfg, paths, exclude_files) for cfg in self.must_configs]
         self.any_of_collectors = [CollectorFactory.create(cfg, paths, exclude_files) for cfg in self.any_of_configs]
@@ -23,8 +26,6 @@ class BoolCollector(BaseCollector):
         return elements
 
     def collect(self) -> Set[CodeElement]:
-        from .collector_factory import CollectorFactory
-
         must_elements_list = []
         any_of_elements_list = []
         must_not_elements = set()
