@@ -3,6 +3,8 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+import ast
+import re
 
 import yaml
 from contextlib import contextmanager
@@ -49,6 +51,17 @@ class TestCollectors(unittest.TestCase):
 
         utils_py = self.test_project_dir / 'utilities' / 'utils.py'
         utils_py.write_text('@utility_decorator\ndef helper_function():\n    pass\n')
+
+    def run_collector(self, collector, file_path):
+        try:
+            with open(file_path, 'r', encoding='utf-8') as f:
+                file_content = f.read()
+            file_ast = ast.parse(file_content, filename=str(file_path))
+        except Exception as e:
+            print(f"Error parsing file {file_path}: {e}")
+            return []
+
+        return collector.match_in_file(file_ast, file_path)
 
     def test_class_inherits_collector(self):
         collector_config = {'base_class': 'BaseModel'}
@@ -130,6 +143,10 @@ class TestCollectors(unittest.TestCase):
 
     @staticmethod
     def capture_output():
+        from contextlib import contextmanager
+        from io import StringIO
+        import sys
+
         @contextmanager
         def _capture_output():
             new_out, new_err = StringIO(), StringIO()
@@ -139,6 +156,7 @@ class TestCollectors(unittest.TestCase):
                 yield sys.stdout, sys.stderr
             finally:
                 sys.stdout, sys.stderr = old_out, old_err
+
         return _capture_output()
 
 if __name__ == '__main__':
