@@ -16,11 +16,11 @@ def main():
     parser = argparse.ArgumentParser(prog="deply", description='A dependency analysis tool for Python projects')
     subparsers = parser.add_subparsers(dest='command', title='Sub-commands', help='Available commands')
 
-    analyze_subparser = subparsers.add_parser('analyze', help='Analyze code for dependencies')
-    analyze_subparser.add_argument("--config", type=str, default='deply.yaml', help="Path to the configuration YAML file")
-    analyze_subparser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
-                                   help="Format of the output report")
-    analyze_subparser.add_argument("--output", type=str, help="Output file for the report")
+    parser_analyze = subparsers.add_parser('analyze', help='Analyze code for dependencies')
+    parser_analyze.add_argument("--config", type=str, default='deply.yaml', help="Path to the configuration YAML file")
+    parser_analyze.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
+                                help="Format of the output report")
+    parser_analyze.add_argument("--output", type=str, help="Output file for the report")
 
     if len(sys.argv) == 1:
         sys.argv.append('analyze')
