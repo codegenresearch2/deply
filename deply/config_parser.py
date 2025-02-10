@@ -12,16 +12,14 @@ class ConfigParser:
         with self.config_path.open("r") as f:
             config = yaml.safe_load(f)
 
-        config = config.get('deply', {})
-        config.setdefault('paths', [])
-        config.setdefault('exclude_files', [])
-        config.setdefault('layers', [])
-        config.setdefault('ruleset', {})
+        deply_config = config.get('deply', {})
+        deply_config = deply_config if deply_config else config
+        deply_config.setdefault('paths', [str(self.config_path.parent)])
+        deply_config.setdefault('exclude_files', [])
+        deply_config.setdefault('layers', [])
+        deply_config.setdefault('ruleset', {})
 
-        if not config['paths']:
-            config['paths'] = [str(self.config_path.parent)]
-
-        return config
+        return deply_config
 
 def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
