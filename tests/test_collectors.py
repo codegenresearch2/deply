@@ -4,7 +4,6 @@ import tempfile
 import unittest
 from pathlib import Path
 import yaml
-import ast
 
 from deply.collectors import FileRegexCollector, ClassInheritsCollector
 from deply.collectors.bool_collector import BoolCollector
@@ -60,19 +59,19 @@ class TestCollectors(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def run_collector(self, collector_config, paths, exclude_files):
-        collector_type = collector_config.pop('type')
+        collector_type = collector_config['type']
         if collector_type == 'class_inherits':
-            collector = ClassInheritsCollector(**collector_config)
+            collector = ClassInheritsCollector(base_class=collector_config['base_class'])
         elif collector_type == 'file_regex':
-            collector = FileRegexCollector(**collector_config)
+            collector = FileRegexCollector(regex=collector_config['regex'])
         elif collector_type == 'class_name_regex':
-            collector = ClassNameRegexCollector(**collector_config)
+            collector = ClassNameRegexCollector(class_name_regex=collector_config['class_name_regex'])
         elif collector_type == 'decorator_usage':
-            collector = DecoratorUsageCollector(**collector_config)
+            collector = DecoratorUsageCollector(decorator_name=collector_config['decorator_name'])
         elif collector_type == 'directory':
-            collector = DirectoryCollector(**collector_config)
+            collector = DirectoryCollector(directories=collector_config['directories'])
         elif collector_type == 'bool':
-            collector = BoolCollector(**collector_config)
+            collector = BoolCollector(must=collector_config['must'], must_not=collector_config['must_not'])
         else:
             raise ValueError(f"Unknown collector type: {collector_type}")
         return collector.collect(paths, exclude_files)
