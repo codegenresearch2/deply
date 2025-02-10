@@ -25,7 +25,7 @@ def main():
     args = parser.parse_args()
 
     if args.command is None:
-        parser.print_help()
+        analyze_parser.print_help()
         sys.exit(0)
 
     config_path = Path(args.config)
@@ -37,13 +37,13 @@ def main():
     layers: dict[str, Layer] = {}
     code_element_to_layer: dict[CodeElement, str] = {}
 
-    for layer_config in config.get('layers', []):
+    for layer_config in config['layers']:
         layer_name = layer_config['name']
         collectors = layer_config.get('collectors', [])
         collected_elements: set[CodeElement] = set()
 
         for collector_config in collectors:
-            collector = CollectorFactory.create(collector_config, config.get('paths', []), config.get('exclude_files', []))
+            collector = CollectorFactory.create(collector_config, config['paths'], config.get('exclude_files', []))
             collected = collector.collect()
             collected_elements.update(collected)
 
