@@ -18,13 +18,15 @@ class FileRegexCollector(BaseCollector):
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-        # Initialize base_path attribute
-        self.base_path = Path(paths[0]) if paths else Path.cwd()
-
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         elements = set()
 
+        # Check if the file should be excluded
         if self.is_excluded(file_path):
+            return elements
+
+        # Check if the file matches the regex pattern
+        if not self.regex.match(str(file_path.relative_to(self.paths[0]))):
             return elements
 
         if not self.element_type or self.element_type == 'class':
@@ -39,7 +41,7 @@ class FileRegexCollector(BaseCollector):
         return elements
 
     def is_excluded(self, file_path: Path) -> bool:
-        relative_path = str(file_path.relative_to(self.base_path))
+        relative_path = str(file_path.relative_to(self.paths[0]))
         absolute_path = str(file_path.absolute())
 
         # Check global exclude patterns
@@ -55,31 +57,33 @@ class FileRegexCollector(BaseCollector):
     def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
         classes = set()
         for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
+            if isinstance(node, ast.ClassDef):
                 full_name = self._get_full_name(node)
-                code_element = CodeElement(
-                    file=file_path,
-                    name=full_name,
-                    element_type='class',
-                    line=node.lineno,
-                    column=node.col_offset
-                )
-                classes.add(code_element)
+                if self.regex.match(full_name):
+                    code_element = CodeElement(
+                        file=file_path,
+                        name=full_name,
+                        element_type='class',
+                        line=node.lineno,
+                        column=node.col_offset
+                    )
+                    classes.add(code_element)
         return classes
 
     def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
         functions = set()
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and self.regex.match(node.name):
+            if isinstance(node, ast.FunctionDef):
                 full_name = self._get_full_name(node)
-                code_element = CodeElement(
-                    file=file_path,
-                    name=full_name,
-                    element_type='function',
-                    line=node.lineno,
-                    column=node.col_offset
-                )
-                functions.add(code_element)
+                if self.regex.match(full_name):
+                    code_element = CodeElement(
+                        file=file_path,
+                        name=full_name,
+                        element_type='function',
+                        line=node.lineno,
+                        column=node.col_offset
+                    )
+                    functions.add(code_element)
         return functions
 
     def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
