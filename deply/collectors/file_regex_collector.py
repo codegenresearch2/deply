@@ -44,32 +44,30 @@ class FileRegexCollector(BaseCollector):
         classes = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
-                if self.regex.match(node.name):
-                    full_name = self._get_full_name(node)
-                    code_element = CodeElement(
-                        file=file_path,
-                        name=full_name,
-                        element_type='class',
-                        line=node.lineno,
-                        column=node.col_offset
-                    )
-                    classes.add(code_element)
+                full_name = self._get_full_name(node)
+                code_element = CodeElement(
+                    file=file_path,
+                    name=full_name,
+                    element_type='class',
+                    line=node.lineno,
+                    column=node.col_offset
+                )
+                classes.add(code_element)
         return classes
 
     def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
         functions = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
-                if self.regex.match(node.name):
-                    full_name = self._get_full_name(node)
-                    code_element = CodeElement(
-                        file=file_path,
-                        name=full_name,
-                        element_type='function',
-                        line=node.lineno,
-                        column=node.col_offset
-                    )
-                    functions.add(code_element)
+                full_name = self._get_full_name(node)
+                code_element = CodeElement(
+                    file=file_path,
+                    name=full_name,
+                    element_type='function',
+                    line=node.lineno,
+                    column=node.col_offset
+                )
+                functions.add(code_element)
         return functions
 
     def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
@@ -78,15 +76,14 @@ class FileRegexCollector(BaseCollector):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
-                        if self.regex.match(target.id):
-                            code_element = CodeElement(
-                                file=file_path,
-                                name=target.id,
-                                element_type='variable',
-                                line=target.lineno,
-                                column=target.col_offset
-                            )
-                            variables.add(code_element)
+                        code_element = CodeElement(
+                            file=file_path,
+                            name=target.id,
+                            element_type='variable',
+                            line=target.lineno,
+                            column=target.col_offset
+                        )
+                        variables.add(code_element)
         return variables
 
     def _get_full_name(self, node):
