@@ -18,39 +18,29 @@ class FileRegexCollector(BaseCollector):
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def match_in_file(self, file_path: Path, base_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         # Apply exclude patterns
-        if self.is_excluded(file_path, base_path):
+        if self.is_excluded(file_path):
             return set()
 
         elements = set()
-        tree = self.parse_file(file_path)
-        if tree is None:
-            return elements
 
         if not self.element_type or self.element_type == 'class':
-            elements.update(self._collect_class_names(tree, file_path))
+            elements.update(self.get_class_names(file_ast, file_path))
 
         if not self.element_type or self.element_type == 'function':
-            elements.update(self._collect_function_names(tree, file_path))
+            elements.update(self.get_function_names(file_ast, file_path))
 
         if not self.element_type or self.element_type == 'variable':
-            elements.update(self._collect_variable_names(tree, file_path))
+            elements.update(self.get_variable_names(file_ast, file_path))
 
         return elements
 
-    def is_excluded(self, file_path: Path, base_path: Path) -> bool:
-        relative_path = str(file_path.relative_to(base_path))
+    def is_excluded(self, file_path: Path) -> bool:
+        relative_path = str(file_path.relative_to(self.base_path))
         return any(pattern.search(relative_path) for pattern in self.exclude_files) or (self.exclude_regex and self.exclude_regex.match(relative_path))
 
-    def parse_file(self, file_path: Path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return ast.parse(f.read(), filename=str(file_path))
-        except (SyntaxError, UnicodeDecodeError):
-            return None
-
-    def _collect_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
+    def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
         classes = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
@@ -65,7 +55,7 @@ class FileRegexCollector(BaseCollector):
                 classes.add(code_element)
         return classes
 
-    def _collect_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
+    def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
         functions = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.FunctionDef):
@@ -80,7 +70,7 @@ class FileRegexCollector(BaseCollector):
                 functions.add(code_element)
         return functions
 
-    def _collect_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
+    def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
         variables = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
