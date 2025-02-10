@@ -37,44 +37,34 @@ def main():
         config['paths'] = ['./']
 
     # Collect code elements and organize them by layers
-    layers: dict[str, Layer] = {}
-    code_element_to_layer: dict[CodeElement, str] = {}
+    layers = {}
+    code_element_to_layer = {}
 
     for layer_config in config.get('layers', []):
         layer_name = layer_config['name']
-        collectors = layer_config.get('collectors', [])
-        collected_elements: set[CodeElement] = set()
+        collectors = [CollectorFactory.create(collector_config, config['paths'], config.get('exclude_files', []))
+                      for collector_config in layer_config.get('collectors', [])]
+        collected_elements = {element for collector in collectors for element in collector.collect()}
 
-        for collector_config in collectors:
-            collector = CollectorFactory.create(collector_config, config['paths'], config.get('exclude_files', []))
-            collected = collector.collect()
-            collected_elements.update(collected)
-
-        # Initialize Layer with collected code elements
-        layer = Layer(
-            name=layer_name,
-            code_elements=collected_elements,
-            dependencies=set()
-        )
+        layer = Layer(name=layer_name, code_elements=collected_elements, dependencies=set())
         layers[layer_name] = layer
 
-        # Map each code element to its layer
         for element in collected_elements:
             code_element_to_layer[element] = layer_name
 
     # Analyze code to find dependencies
     analyzer = CodeAnalyzer(set(code_element_to_layer.keys()))
-    dependencies: set[Dependency] = analyzer.analyze()
+    dependencies = analyzer.analyze()
 
     # Assign dependencies to respective layers
     for dependency in dependencies:
         source_layer_name = code_element_to_layer.get(dependency.code_element)
-        if source_layer_name and source_layer_name in layers:
+        if source_layer_name in layers:
             layers[source_layer_name].dependencies.add(dependency)
 
     # Apply rules
     rule = DependencyRule(config.get('ruleset', {}))
-    violations = rule.check(layers=layers)
+    violations = rule.check(layers)
 
     # Generate report
     report_generator = ReportGenerator(violations)
@@ -88,10 +78,7 @@ def main():
         print(report)
 
     # Exit with appropriate status
-    if violations:
-        exit(1)
-    else:
-        exit(0)
+    sys.exit(1 if violations else 0)
 
 if __name__ == "__main__":
     main()
