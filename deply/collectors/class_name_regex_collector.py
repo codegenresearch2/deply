@@ -38,8 +38,7 @@ class ClassNameRegexCollector(BaseCollector):
 
     def is_excluded(self, file_path: Path) -> bool:
         relative_path = str(file_path.relative_to(self.paths[0]))
-        return any(pattern.search(relative_path) for pattern in self.exclude_files) or \
-               (self.exclude_regex and self.exclude_regex.match(relative_path))
+        return (self.exclude_regex and self.exclude_regex.match(relative_path)) or any(pattern.search(relative_path) for pattern in self.exclude_files)
 
     def parse_file(self, file_path: Path):
         try:
@@ -55,8 +54,3 @@ class ClassNameRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
-
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
