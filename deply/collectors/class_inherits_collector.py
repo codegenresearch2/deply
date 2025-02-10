@@ -15,30 +15,15 @@ class ClassInheritsCollector(BaseCollector):
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
-        tree = self.parse_file(file_path)
-        if tree is None:
-            return set()
-
-        return self.get_classes_inheriting(tree, file_path)
-
-    def parse_file(self, file_path: Path):
-        try:
-            with open(file_path, 'r', encoding='utf-8') as f:
-                return ast.parse(f.read(), filename=str(file_path))
-        except (SyntaxError, UnicodeDecodeError):
-            return None
-
-    def get_classes_inheriting(self, tree, file_path: Path) -> Set[CodeElement]:
-        import_aliases = get_import_aliases(tree)
         classes = set()
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
                 for base in node.bases:
-                    base_name = get_base_name(base, import_aliases)
+                    base_name = get_base_name(base, get_import_aliases(file_ast))
                     if base_name == self.base_class or base_name.endswith(f".{self.base_class}"):
                         full_name = self._get_full_name(node)
                         code_element = CodeElement(
