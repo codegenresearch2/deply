@@ -10,7 +10,7 @@ from deply.utils.ast_utils import get_import_aliases, get_base_name
 class ClassInheritsCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
         self.base_class = config.get("base_class", "")
-        self.exclude_files_regex = re.compile(config.get("exclude_files_regex", "")) if config.get("exclude_files_regex", "") else None
+        self.exclude_regex = re.compile(config.get("exclude_files_regex", "")) if config.get("exclude_files_regex", "") else None
         self.paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
@@ -19,7 +19,7 @@ class ClassInheritsCollector(BaseCollector):
         for base_path in self.paths:
             if base_path.exists():
                 for file_path in base_path.rglob("*.py"):
-                    if not any(pattern.search(str(file_path.relative_to(base_path))) for pattern in self.exclude_files) and (not self.exclude_files_regex or not self.exclude_files_regex.match(str(file_path.relative_to(base_path)))):
+                    if not any(pattern.search(str(file_path.relative_to(base_path))) for pattern in self.exclude_files) and not (self.exclude_regex and self.exclude_regex.search(str(file_path.relative_to(base_path)))):
                         tree = self.parse_file(file_path)
                         if tree is not None:
                             classes = self.match_in_file(tree, file_path)
@@ -34,7 +34,7 @@ class ClassInheritsCollector(BaseCollector):
             return None
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
-        if self.exclude_files_regex and self.exclude_files_regex.search(str(file_path)):
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
         import_aliases = get_import_aliases(file_ast)
@@ -43,7 +43,7 @@ class ClassInheritsCollector(BaseCollector):
             if isinstance(node, ast.ClassDef):
                 for base in node.bases:
                     base_name = get_base_name(base, import_aliases)
-                    if base_name == self.base_class or base_name.endswith(f".{self.base_class}"):
+                    if base_name == self.base_class or base_name.endswith(f'.{self.base_class}'):
                         full_name = self._get_full_name(node)
                         code_element = CodeElement(file=file_path, name=full_name, element_type='class', line=node.lineno, column=node.col_offset)
                         classes.add(code_element)
