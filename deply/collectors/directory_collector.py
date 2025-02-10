@@ -8,7 +8,7 @@ from deply.models.code_element import CodeElement
 from deply.utils.ast_utils import get_import_aliases, get_base_name
 
 class DirectoryCollector(BaseCollector):
-    def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
+    def __init__(self, config: dict, base_paths: List[str], exclude_files: List[str]):
         self.directories = config.get("directories", [])
         self.recursive = config.get("recursive", True)
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
@@ -16,56 +16,47 @@ class DirectoryCollector(BaseCollector):
 
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.paths = [Path(p) for p in paths]
+        self.base_paths = [Path(p) for p in base_paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def collect(self) -> Set[CodeElement]:
         collected_elements = set()
         all_files = self.get_all_files()
 
-        for file_path, base_path in all_files:
-            elements = self.get_elements_in_file(file_path)
+        for file_path in all_files:
+            elements = self.match_in_file(file_path)
             collected_elements.update(elements)
 
         return collected_elements
 
-    def get_all_files(self) -> List[Tuple[Path, Path]]:
+    def get_all_files(self) -> List[Path]:
         all_files = []
 
-        for base_path in self.paths:
+        for base_path in self.base_paths:
             if not base_path.exists():
                 continue
 
-            # Collect files only in specified directories
-            for directory in self.directories:
-                dir_path = base_path / directory
-                if dir_path.exists() and dir_path.is_dir():
-                    if self.recursive:
-                        files = [f for f in dir_path.rglob('*.py') if f.is_file()]
-                    else:
-                        files = [f for f in dir_path.glob('*.py') if f.is_file()]
+            if self.recursive:
+                files = [f for f in base_path.rglob('*.py') if f.is_file() and self.is_in_directories(f, base_path)]
+            else:
+                files = [f for f in base_path.glob('*.py') if f.is_file() and self.is_in_directories(f, base_path)]
 
-                    # Apply global exclude patterns
-                    def is_excluded(file_path: Path) -> bool:
-                        relative_path = str(file_path.relative_to(base_path))
-                        return any(pattern.search(relative_path) for pattern in self.exclude_files)
+            # Apply global exclude patterns
+            files = [f for f in files if not any(pattern.search(str(f.relative_to(base_path))) for pattern in self.exclude_files)]
 
-                    files = [f for f in files if not is_excluded(f)]
+            # Apply collector-specific exclude pattern
+            if self.exclude_regex:
+                files = [f for f in files if not self.exclude_regex.match(str(f.relative_to(base_path)))]
 
-                    # Apply collector-specific exclude pattern
-                    if self.exclude_regex:
-                        files = [
-                            f for f in files
-                            if not self.exclude_regex.match(str(f.relative_to(base_path)))
-                        ]
-
-                    # Collect files along with their base path
-                    files_with_base = [(f, base_path) for f in files]
-                    all_files.extend(files_with_base)
+            all_files.extend(files)
 
         return all_files
 
-    def get_elements_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def is_in_directories(self, file_path: Path, base_path: Path) -> bool:
+        relative_path = file_path.relative_to(base_path)
+        return any(relative_path.parts[0] == directory for directory in self.directories)
+
+    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
         elements = set()
         tree = self.parse_file(file_path)
         if tree is None:
@@ -93,6 +84,7 @@ class DirectoryCollector(BaseCollector):
 
     def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
         classes = set()
+        import_aliases = get_import_aliases(tree)
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 full_name = self._get_full_name(node)
@@ -104,6 +96,18 @@ class DirectoryCollector(BaseCollector):
                     column=node.col_offset
                 )
                 classes.add(code_element)
+
+                # Add base classes to the set
+                for base in node.bases:
+                    base_name = get_base_name(base, import_aliases)
+                    base_code_element = CodeElement(
+                        file=file_path,
+                        name=base_name,
+                        element_type='class',
+                        line=node.lineno,
+                        column=node.col_offset
+                    )
+                    classes.add(base_code_element)
         return classes
 
     def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
@@ -149,32 +153,3 @@ class DirectoryCollector(BaseCollector):
         for node in ast.walk(tree):
             for child in ast.iter_child_nodes(node):
                 child.parent = node
-
-    # Added import_aliases to handle imports in get_class_names
-    def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
-        classes = set()
-        import_aliases = get_import_aliases(tree)
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
-                full_name = self._get_full_name(node)
-                code_element = CodeElement(
-                    file=file_path,
-                    name=full_name,
-                    element_type='class',
-                    line=node.lineno,
-                    column=node.col_offset
-                )
-                classes.add(code_element)
-
-                # Add base classes to the set
-                for base in node.bases:
-                    base_name = get_base_name(base, import_aliases)
-                    base_code_element = CodeElement(
-                        file=file_path,
-                        name=base_name,
-                        element_type='class',
-                        line=node.lineno,
-                        column=node.col_offset
-                    )
-                    classes.add(base_code_element)
-        return classes
