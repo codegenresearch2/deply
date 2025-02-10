@@ -8,7 +8,7 @@ from deply.models.code_element import CodeElement
 from deply.utils.ast_utils import get_import_aliases, get_base_name
 
 class DirectoryCollector(BaseCollector):
-    def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
+    def __init__(self, config: dict, base_paths: List[str], exclude_files: List[str]):
         self.directories = config.get("directories", [])
         self.recursive = config.get("recursive", True)
         self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
@@ -16,7 +16,7 @@ class DirectoryCollector(BaseCollector):
 
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-        self.paths = [Path(p) for p in paths]
+        self.base_paths = [Path(p) for p in base_paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def collect(self) -> Set[CodeElement]:
@@ -28,22 +28,25 @@ class DirectoryCollector(BaseCollector):
             elements = self.match_in_file(file_ast, file_path)
             collected_elements.update(elements)
 
+        # Apply rules and check for violations
+        # Add logic to handle rule violations
+
         return collected_elements
 
     def get_all_files(self) -> List[Path]:
         all_files = []
 
-        for path in self.paths:
-            if not path.exists():
+        for base_path in self.base_paths:
+            if not base_path.exists():
                 continue
 
             if self.recursive:
-                files = [f for f in path.rglob('*.py') if f.is_file() and self.is_in_directories(f, path)]
+                files = [f for f in base_path.rglob('*.py') if f.is_file() and self.is_in_directories(f, base_path)]
             else:
-                files = [f for f in path.glob('*.py') if f.is_file() and self.is_in_directories(f, path)]
+                files = [f for f in base_path.glob('*.py') if f.is_file() and self.is_in_directories(f, base_path)]
 
             # Apply global exclude patterns
-            files = [f for f in files if not any(pattern.search(str(f.relative_to(path))) for pattern in self.exclude_files)]
+            files = [f for f in files if not any(pattern.search(str(f.relative_to(base_path))) for pattern in self.exclude_files)]
 
             all_files.extend(files)
 
@@ -54,6 +57,10 @@ class DirectoryCollector(BaseCollector):
         return any(relative_path.parts[0] == directory for directory in self.directories)
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+        # Apply global exclude patterns
+        if any(pattern.search(str(file_path)) for pattern in self.exclude_files):
+            return set()
+
         # Apply collector-specific exclude pattern
         if self.exclude_regex and self.exclude_regex.match(str(file_path)):
             return set()
