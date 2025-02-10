@@ -2,7 +2,6 @@ import argparse
 import logging
 import sys
 from pathlib import Path
-import ast
 import re
 
 from deply import __version__
@@ -61,6 +60,13 @@ def main():
     paths = config.get('paths', [])
     exclude_files = config.get('exclude_files', [])
 
+    # Define a function to check if a file should be excluded
+    def is_excluded(file_path):
+        for pattern in exclude_files:
+            if re.match(pattern, str(file_path)):
+                return True
+        return False
+
     # Collect code elements and organize them by layers
     layers: dict[str, Layer] = {}
     code_element_to_layer: dict[CodeElement, str] = {}
@@ -76,9 +82,12 @@ def main():
             collector_type = collector_config.get('type', 'unknown')
             logging.debug(f"Using collector: {collector_type} for layer: {layer_name}")
             collector = CollectorFactory.create(collector_config, paths, exclude_files)
-            collected = collector.collect()
-            collected_elements.update(collected)
-            logging.debug(f"Collected {len(collected)} elements for collector {collector_type}")
+            try:
+                collected = collector.collect()
+                collected_elements.update(collected)
+                logging.debug(f"Collected {len(collected)} elements for collector {collector_type}")
+            except Exception as e:
+                logging.error(f"Failed to collect elements with {collector_type}: {e}")
 
         # Initialize Layer with collected code elements
         layer = Layer(
