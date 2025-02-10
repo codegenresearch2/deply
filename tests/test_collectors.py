@@ -23,12 +23,10 @@ class TestCollectors(unittest.TestCase):
         shutil.rmtree(self.test_dir)
 
     def create_test_files(self):
-        # Create directories explicitly for better readability
-        (self.test_project_dir / 'controllers').mkdir(parents=True, exist_ok=True)
-        (self.test_project_dir / 'models').mkdir(parents=True, exist_ok=True)
-        (self.test_project_dir / 'services').mkdir(parents=True, exist_ok=True)
-        (self.test_project_dir / 'excluded_folder_name').mkdir(parents=True, exist_ok=True)
-        (self.test_project_dir / 'utilities').mkdir(parents=True, exist_ok=True)
+        # Create directories and files explicitly for better readability
+        directories = ['controllers', 'models', 'services', 'excluded_folder_name', 'utilities']
+        for directory in directories:
+            (self.test_project_dir / directory).mkdir(parents=True, exist_ok=True)
 
         # Define file contents
         file_contents = {
