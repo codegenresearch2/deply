@@ -45,7 +45,6 @@ class DirectoryCollector(BaseCollector):
             if not base_path.exists():
                 continue
 
-            # Collect files only in specified directories
             for directory in self.directories:
                 dir_path = base_path / directory
                 if dir_path.exists() and dir_path.is_dir():
@@ -54,7 +53,6 @@ class DirectoryCollector(BaseCollector):
                     else:
                         files = [f for f in dir_path.glob('*.py') if f.is_file()]
 
-                    # Collect files along with their base path
                     files_with_base = [(f, base_path) for f in files]
                     all_files.extend(files_with_base)
 
