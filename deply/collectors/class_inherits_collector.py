@@ -22,7 +22,7 @@ class ClassInheritsCollector(BaseCollector):
             tree = self.parse_file(file_path)
             if tree is None:
                 continue
-            classes = self.get_classes_inheriting(tree, file_path)
+            classes = self.match_in_file(tree, file_path)
             collected_elements.update(classes)
 
         return collected_elements
@@ -42,7 +42,7 @@ class ClassInheritsCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def get_classes_inheriting(self, tree, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
         import_aliases = get_import_aliases(tree)
         classes = set()
         for node in ast.walk(tree):
@@ -61,3 +61,8 @@ class ClassInheritsCollector(BaseCollector):
             names.append(node.name)
             node = getattr(node, 'parent', None)
         return '.'.join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
