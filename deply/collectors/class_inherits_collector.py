@@ -10,9 +10,10 @@ from deply.utils.ast_utils import get_import_aliases, get_base_name
 class ClassInheritsCollector(BaseCollector):
     def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):
         self.base_class = config.get("base_class", "")
-        self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
-        self.exclude_regex = re.compile(config.get("exclude_files_regex", "")) if config.get("exclude_files_regex", "") else None
+        self.exclude_files_regex_pattern = config.get("exclude_files_regex", "")
+        self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
         self.paths = [Path(p) for p in paths]
+        self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
     def collect(self) -> Set[CodeElement]:
         all_files = self.get_all_files()
@@ -43,6 +44,9 @@ class ClassInheritsCollector(BaseCollector):
             return None
 
     def match_in_file(self, tree, file_path: Path) -> Set[CodeElement]:
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
+            return set()
+
         import_aliases = get_import_aliases(tree)
         classes = set()
         for node in ast.walk(tree):
@@ -57,12 +61,8 @@ class ClassInheritsCollector(BaseCollector):
 
     def _get_full_name(self, node):
         names = []
-        while isinstance(node, (ast.ClassDef, ast.FunctionDef)):
-            names.append(node.name)
-            node = getattr(node, 'parent', None)
+        current = node
+        while isinstance(current, (ast.ClassDef, ast.FunctionDef)):
+            names.append(current.name)
+            current = getattr(current, 'parent', None)
         return '.'.join(reversed(names))
-
-    def annotate_parent(self, tree):
-        for node in ast.walk(tree):
-            for child in ast.iter_child_nodes(node):
-                child.parent = node
