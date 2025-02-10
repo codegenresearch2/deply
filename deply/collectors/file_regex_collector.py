@@ -42,15 +42,19 @@ class FileRegexCollector(BaseCollector):
             # Apply global exclude patterns
             files = [f for f in files if not any(pattern.search(str(f)) for pattern in self.exclude_files)]
 
-            # Apply collector-specific exclude pattern
-            if self.exclude_regex:
-                files = [f for f in files if not self.exclude_regex.match(str(f))]
-
             all_files.extend(files)
 
         return all_files
 
     def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+        # Apply collector-specific exclude pattern
+        if self.exclude_regex and self.exclude_regex.match(str(file_path)):
+            return set()
+
+        # Check if the file matches the regex pattern
+        if not self.regex.match(str(file_path)):
+            return set()
+
         elements = set()
         tree = self.parse_file(file_path)
         if tree is None:
@@ -58,13 +62,15 @@ class FileRegexCollector(BaseCollector):
 
         import_aliases = get_import_aliases(tree)
 
-        if not self.element_type or self.element_type == 'class':
+        if self.element_type == 'class':
             elements.update(self.get_class_names(tree, file_path, import_aliases))
-
-        if not self.element_type or self.element_type == 'function':
+        elif self.element_type == 'function':
             elements.update(self.get_function_names(tree, file_path))
-
-        if not self.element_type or self.element_type == 'variable':
+        elif self.element_type == 'variable':
+            elements.update(self.get_variable_names(tree, file_path))
+        else:
+            elements.update(self.get_class_names(tree, file_path, import_aliases))
+            elements.update(self.get_function_names(tree, file_path))
             elements.update(self.get_variable_names(tree, file_path))
 
         return elements
@@ -122,3 +128,8 @@ class FileRegexCollector(BaseCollector):
             names.append(current.name)
             current = getattr(current, "parent", None)
         return ".".join(reversed(names))
+
+    def annotate_parent(self, tree):
+        for node in ast.walk(tree):
+            for child in ast.iter_child_nodes(node):
+                child.parent = node
