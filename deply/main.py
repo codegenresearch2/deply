@@ -1,4 +1,5 @@
 import argparse
+import sys
 from pathlib import Path
 
 from .code_analyzer import CodeAnalyzer
@@ -12,7 +13,7 @@ from .rules.dependency_rule import DependencyRule
 
 def main():
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(prog="deply", description='Dependency analysis tool')
+    parser = argparse.ArgumentParser(prog="deply", description='A dependency analysis tool for Python projects')
     subparsers = parser.add_subparsers(dest='command', title='Sub-commands', help='Available commands')
 
     analyze_parser = subparsers.add_parser('analyze', help='Analyze code for dependencies')
@@ -21,10 +22,10 @@ def main():
                                 help="Format of the output report")
     analyze_parser.add_argument("--output", type=str, help="Output file for the report")
 
-    args = parser.parse_args()
+    if len(sys.argv) == 1:
+        sys.argv.append('analyze')
 
-    if not args.command:
-        args.command = 'analyze'
+    args = parser.parse_args()
 
     config_path = Path(args.config)
 
@@ -39,7 +40,7 @@ def main():
     layers: dict[str, Layer] = {}
     code_element_to_layer: dict[CodeElement, str] = {}
 
-    for layer_config in config['layers']:
+    for layer_config in config.get('layers', []):
         layer_name = layer_config['name']
         collectors = layer_config.get('collectors', [])
         collected_elements: set[CodeElement] = set()
@@ -72,7 +73,7 @@ def main():
             layers[source_layer_name].dependencies.add(dependency)
 
     # Apply rules
-    rule = DependencyRule(config['ruleset'])
+    rule = DependencyRule(config.get('ruleset', {}))
     violations = rule.check(layers=layers)
 
     # Generate report
