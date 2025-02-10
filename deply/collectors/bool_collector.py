@@ -26,43 +26,36 @@ class BoolCollector(BaseCollector):
         return elements
 
     def collect(self) -> Set[CodeElement]:
-        must_elements_list = []
-        any_of_elements_list = []
+        must_sets = []
+        any_of_sets = []
         must_not_elements = set()
 
         # Collect elements from must collectors
         for collector in self.must_collectors:
-            must_elements_list.append(collector.collect())
+            must_sets.append(collector.collect())
 
         # Collect elements from any_of collectors
         for collector in self.any_of_collectors:
-            any_of_elements_list.append(collector.collect())
+            any_of_sets.append(collector.collect())
 
         # Collect elements from must_not collectors
         for collector in self.must_not_collectors:
             must_not_elements.update(collector.collect())
 
         # Combine must elements
-        if must_elements_list:
-            must_elements = set.intersection(*must_elements_list)
+        if must_sets:
+            must_elements = set.intersection(*must_sets)
         else:
-            must_elements = None
+            must_elements = set()
 
         # Combine any_of elements
-        if any_of_elements_list:
-            any_of_elements = set.union(*any_of_elements_list)
+        if any_of_sets:
+            any_of_elements = set.union(*any_of_sets)
         else:
-            any_of_elements = None
+            any_of_elements = set()
 
         # Combine must and any_of elements
-        if must_elements is not None and any_of_elements is not None:
-            combined_elements = must_elements & any_of_elements
-        elif must_elements is not None:
-            combined_elements = must_elements
-        elif any_of_elements is not None:
-            combined_elements = any_of_elements
-        else:
-            combined_elements = set()
+        combined_elements = must_elements & any_of_elements
 
         # Subtract must_not elements
         final_elements = combined_elements - must_not_elements
