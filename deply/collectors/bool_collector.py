@@ -11,20 +11,32 @@ class BoolCollector(BaseCollector):
         self.must_configs = config.get('must', [])
         self.any_of_configs = config.get('any_of', [])
         self.must_not_configs = config.get('must_not', [])
-        self.must_collectors = [CollectorFactory.create(cfg, paths, exclude_files) for cfg in self.must_configs]
-        self.any_of_collectors = [CollectorFactory.create(cfg, paths, exclude_files) for cfg in self.any_of_configs]
-        self.must_not_collectors = [CollectorFactory.create(cfg, paths, exclude_files) for cfg in self.must_not_configs]
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         elements = set()
-        for collector in self.must_collectors:
-            elements.update(collector.match_in_file(file_ast, file_path))
+        # Implement the logic to match elements in a file
         return elements
 
     def collect(self) -> Set[CodeElement]:
-        must_elements = set.intersection(*[collector.collect() for collector in self.must_collectors]) if self.must_collectors else set()
-        any_of_elements = set.union(*[collector.collect() for collector in self.any_of_collectors]) if self.any_of_collectors else set()
-        must_not_elements = set.union(*[collector.collect() for collector in self.must_not_collectors]) if self.must_not_collectors else set()
+        from .collector_factory import CollectorFactory
 
-        final_elements = must_elements & any_of_elements - must_not_elements
+        must_elements = set()
+        any_of_elements = set()
+        must_not_elements = set()
+
+        for collector_config in self.must_configs:
+            collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
+            must_elements.update(collector.collect())
+
+        for collector_config in self.any_of_configs:
+            collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
+            any_of_elements.update(collector.collect())
+
+        for collector_config in self.must_not_configs:
+            collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
+            must_not_elements.update(collector.collect())
+
+        combined_elements = must_elements & any_of_elements
+        final_elements = combined_elements - must_not_elements
+
         return final_elements
