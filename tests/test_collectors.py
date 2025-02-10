@@ -24,7 +24,8 @@ class TestCollectors(unittest.TestCase):
 
     def create_test_files(self):
         # Simplify directory and file creation
-        for directory in ['controllers', 'models', 'services', 'excluded_folder_name', 'utilities']:
+        directories = ['controllers', 'models', 'services', 'excluded_folder_name', 'utilities']
+        for directory in directories:
             (self.test_project_dir / directory).mkdir(parents=True, exist_ok=True)
 
         # Define file contents
