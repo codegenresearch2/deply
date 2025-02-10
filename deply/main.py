@@ -24,7 +24,7 @@ def main():
     args = parser.parse_args()
 
     if not args.command:
-        parser.print_help()
+        analyze_parser.print_help()
         sys.exit(0)
 
     config_path = Path(args.config)
@@ -46,7 +46,7 @@ def main():
         collected_elements: set[CodeElement] = set()
 
         for collector_config in collectors:
-            collector = CollectorFactory.create(collector_config, config.get('paths', []), config.get('exclude_files', []))
+            collector = CollectorFactory.create(collector_config, config['paths'], config.get('exclude_files', []))
             collected = collector.collect()
             collected_elements.update(collected)
 
@@ -73,7 +73,7 @@ def main():
             layers[source_layer_name].dependencies.add(dependency)
 
     # Apply rules
-    rule = DependencyRule(config.get('ruleset', {}))
+    rule = DependencyRule(config['ruleset'])
     violations = rule.check(layers=layers)
 
     # Generate report
@@ -89,9 +89,9 @@ def main():
 
     # Exit with appropriate status
     if violations:
-        sys.exit(1)
+        exit(1)
     else:
-        sys.exit(0)
+        exit(0)
 
 if __name__ == "__main__":
     main()
