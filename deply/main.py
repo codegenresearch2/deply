@@ -2,6 +2,8 @@ import argparse
 import logging
 import sys
 from pathlib import Path
+import ast
+import re
 
 from deply import __version__
 from deply.rules import RuleFactory
@@ -55,6 +57,10 @@ def main():
     logging.info(f"Using configuration file: {config_path}")
     config = ConfigParser(config_path).parse()
 
+    # Collect paths and excluded files separately
+    paths = config.get('paths', [])
+    exclude_files = config.get('exclude_files', [])
+
     # Collect code elements and organize them by layers
     layers: dict[str, Layer] = {}
     code_element_to_layer: dict[CodeElement, str] = {}
@@ -69,9 +75,10 @@ def main():
         for collector_config in collectors:
             collector_type = collector_config.get('type', 'unknown')
             logging.debug(f"Using collector: {collector_type} for layer: {layer_name}")
-            collector = CollectorFactory.create(collector_config, config['paths'], config['exclude_files'])
-            collected_elements.update(collector.collect())
-            logging.debug(f"Collected {len(collected_elements)} elements for collector {collector_type}")
+            collector = CollectorFactory.create(collector_config, paths, exclude_files)
+            collected = collector.collect()
+            collected_elements.update(collected)
+            logging.debug(f"Collected {len(collected)} elements for collector {collector_type}")
 
         # Initialize Layer with collected code elements
         layer = Layer(
