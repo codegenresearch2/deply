@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
@@ -13,21 +13,7 @@ class ClassNameRegexCollector(BaseCollector):
         self.regex = re.compile(self.regex_pattern)
         self.exclude_regex = re.compile(self.exclude_files_regex_pattern) if self.exclude_files_regex_pattern else None
 
-    def collect(self) -> Set[CodeElement]:
-        collected_elements = set()
-        all_files = self.get_all_files()
-
-        for file_path, base_path in all_files:
-            tree = self.parse_file(file_path)
-            if tree is None:
-                continue
-            # self.annotate_parent(tree)  # Commented out as per gold code
-            classes = self.match_in_file(tree, file_path)
-            collected_elements.update(classes)
-
-        return collected_elements
-
-    def get_all_files(self) -> List[Tuple[Path, Path]]:
+    def get_all_files(self) -> List[Path]:
         all_files = []
 
         for base_path in self.paths:
@@ -39,9 +25,7 @@ class ClassNameRegexCollector(BaseCollector):
             # Apply exclude patterns
             files = [f for f in files if not self.is_excluded(f, base_path)]
 
-            # Collect files along with their base path
-            files_with_base = [(f, base_path) for f in files]
-            all_files.extend(files_with_base)
+            all_files.extend(files)
 
         return all_files
 
@@ -60,6 +44,7 @@ class ClassNameRegexCollector(BaseCollector):
         if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
+        # self.annotate_parent(file_ast)  # Commented out as per gold code
         classes = set()
         for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
