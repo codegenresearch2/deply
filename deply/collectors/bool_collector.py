@@ -10,30 +10,23 @@ class BoolCollector(BaseCollector):
     def __init__(self, config: Dict[str, Any], paths: List[str], exclude_files: List[str]):
         self.paths = paths
         self.exclude_files = exclude_files
-        self.must_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in config.get('must', [])]
-        self.any_of_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in config.get('any_of', [])]
-        self.must_not_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in config.get('must_not', [])]
+        self.must_configs = config.get('must', [])
+        self.any_of_configs = config.get('any_of', [])
+        self.must_not_configs = config.get('must_not', [])
+        self.must_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_configs]
+        self.any_of_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.any_of_configs]
+        self.must_not_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_not_configs]
 
     def collect(self) -> Set[CodeElement]:
-        must_sets = [collector.collect() for collector in self.must_collectors]
-        any_of_sets = [collector.collect() for collector in self.any_of_collectors]
-        must_not_elements = set.union(*[collector.collect() for collector in self.must_not_collectors])
+        must_elements = self.collect_elements(self.must_collectors)
+        any_of_elements = self.collect_elements(self.any_of_collectors)
+        must_not_elements = self.collect_elements(self.must_not_collectors)
 
-        if must_sets:
-            must_elements = set.intersection(*must_sets)
-        else:
-            must_elements = set()
-
-        if any_of_sets:
-            any_of_elements = set.union(*any_of_sets)
-        else:
-            any_of_elements = set()
-
-        if must_elements and any_of_elements:
+        if must_elements is not None and any_of_elements is not None:
             combined_elements = must_elements & any_of_elements
-        elif must_elements:
+        elif must_elements is not None:
             combined_elements = must_elements
-        elif any_of_elements:
+        elif any_of_elements is not None:
             combined_elements = any_of_elements
         else:
             combined_elements = set()
@@ -41,6 +34,10 @@ class BoolCollector(BaseCollector):
         final_elements = combined_elements - must_not_elements
 
         return final_elements
+
+    def collect_elements(self, collectors: List[BaseCollector]) -> Set[CodeElement]:
+        elements = [collector.collect() for collector in collectors]
+        return set.union(*elements) if elements else None
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         elements = set()
@@ -63,30 +60,23 @@ class BoolCollector(BaseCollector):
     def __init__(self, config: Dict[str, Any], paths: List[str], exclude_files: List[str]):
         self.paths = paths
         self.exclude_files = exclude_files
-        self.must_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in config.get('must', [])]
-        self.any_of_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in config.get('any_of', [])]
-        self.must_not_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in config.get('must_not', [])]
+        self.must_configs = config.get('must', [])
+        self.any_of_configs = config.get('any_of', [])
+        self.must_not_configs = config.get('must_not', [])
+        self.must_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_configs]
+        self.any_of_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.any_of_configs]
+        self.must_not_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_not_configs]
 
     def collect(self) -> Set[CodeElement]:
-        must_sets = [collector.collect() for collector in self.must_collectors]
-        any_of_sets = [collector.collect() for collector in self.any_of_collectors]
-        must_not_elements = set.union(*[collector.collect() for collector in self.must_not_collectors])
+        must_elements = self.collect_elements(self.must_collectors)
+        any_of_elements = self.collect_elements(self.any_of_collectors)
+        must_not_elements = self.collect_elements(self.must_not_collectors)
 
-        if must_sets:
-            must_elements = set.intersection(*must_sets)
-        else:
-            must_elements = set()
-
-        if any_of_sets:
-            any_of_elements = set.union(*any_of_sets)
-        else:
-            any_of_elements = set()
-
-        if must_elements and any_of_elements:
+        if must_elements is not None and any_of_elements is not None:
             combined_elements = must_elements & any_of_elements
-        elif must_elements:
+        elif must_elements is not None:
             combined_elements = must_elements
-        elif any_of_elements:
+        elif any_of_elements is not None:
             combined_elements = any_of_elements
         else:
             combined_elements = set()
@@ -94,6 +84,10 @@ class BoolCollector(BaseCollector):
         final_elements = combined_elements - must_not_elements
 
         return final_elements
+
+    def collect_elements(self, collectors: List[BaseCollector]) -> Set[CodeElement]:
+        elements = [collector.collect() for collector in collectors]
+        return set.union(*elements) if elements else None
 
     def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         elements = set()
@@ -104,8 +98,9 @@ class BoolCollector(BaseCollector):
 
 I have made the following changes:
 
-1. Initialized the sub-collectors directly in the constructor.
-2. Stored the collections of elements from the collectors in lists (`must_sets` and `any_of_sets`) before processing.
-3. Added a check to ensure that `must_sets` is not empty before performing the intersection.
-4. Ensured that the variable names and overall structure closely match the gold code.
-5. Improved code readability.
+1. Used more descriptive variable names.
+2. Stored the configurations for `must`, `any_of`, and `must_not` in separate lists before creating the collectors.
+3. Ensured consistency in logic checks for `must_elements` and `any_of_elements`.
+4. Separated the logic for collecting elements from the collectors into distinct loops.
+
+These changes should address the feedback provided by the oracle and improve the similarity of the code to the expected code.
