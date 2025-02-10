@@ -28,13 +28,13 @@ class FileRegexCollector(BaseCollector):
 
         elements = set()
 
-        if not self.element_type or self.element_type == 'class':
+        if self.element_type in ['class', '']:
             elements.update(self.get_class_names(file_ast, file_path))
 
-        if not self.element_type or self.element_type == 'function':
+        if self.element_type in ['function', '']:
             elements.update(self.get_function_names(file_ast, file_path))
 
-        if not self.element_type or self.element_type == 'variable':
+        if self.element_type in ['variable', '']:
             elements.update(self.get_variable_names(file_ast, file_path))
 
         return elements
@@ -43,8 +43,12 @@ class FileRegexCollector(BaseCollector):
         relative_path = str(file_path.relative_to(self.base_path))
         absolute_path = str(file_path.absolute())
 
-        # Check global exclude patterns and collector-specific exclude pattern
-        if any(pattern.search(relative_path) or pattern.search(absolute_path) for pattern in self.exclude_files) or (self.exclude_regex and (self.exclude_regex.match(relative_path) or self.exclude_regex.match(absolute_path))):
+        # Check collector-specific exclude pattern
+        if self.exclude_regex and (self.exclude_regex.match(relative_path) or self.exclude_regex.match(absolute_path)):
+            return True
+
+        # Check global exclude patterns
+        if any(pattern.search(relative_path) or pattern.search(absolute_path) for pattern in self.exclude_files):
             return True
 
         return False
@@ -52,7 +56,7 @@ class FileRegexCollector(BaseCollector):
     def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
         classes = set()
         for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef):
+            if isinstance(node, ast.ClassDef) and self.regex.match(node.name):
                 full_name = self._get_full_name(node)
                 code_element = CodeElement(
                     file=file_path,
@@ -67,7 +71,7 @@ class FileRegexCollector(BaseCollector):
     def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
         functions = set()
         for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef):
+            if isinstance(node, ast.FunctionDef) and self.regex.match(node.name):
                 full_name = self._get_full_name(node)
                 code_element = CodeElement(
                     file=file_path,
@@ -84,7 +88,7 @@ class FileRegexCollector(BaseCollector):
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
-                    if isinstance(target, ast.Name):
+                    if isinstance(target, ast.Name) and self.regex.match(target.id):
                         code_element = CodeElement(
                             file=file_path,
                             name=target.id,
