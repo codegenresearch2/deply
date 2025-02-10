@@ -48,8 +48,7 @@ class FileRegexCollector(BaseCollector):
 
     def match_in_file(self, tree: ast.AST, file_path: Path) -> Set[CodeElement]:
         # Check if the file matches the regex pattern
-        relative_path = str(file_path.relative_to(self.paths[0]))
-        if not self.regex.match(relative_path) and not self.regex.match(str(file_path)):
+        if not self.regex.match(str(file_path)) and not self.regex.match(str(file_path.relative_to(self.paths[0]))):
             return set()
 
         # Apply collector-specific exclude pattern
@@ -107,6 +106,7 @@ class FileRegexCollector(BaseCollector):
         return functions
 
     def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
+        # TODO: Consider the need for parent annotation
         variables = set()
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
