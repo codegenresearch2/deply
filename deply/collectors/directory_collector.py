@@ -17,23 +17,19 @@ class DirectoryCollector(BaseCollector):
         self.base_paths = [Path(p) for p in paths]
         self.exclude_files = [re.compile(pattern) for pattern in exclude_files]
 
-    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_path: Path, file_ast: ast.AST) -> Set[CodeElement]:
         if self.is_excluded(file_path):
             return set()
 
         elements = set()
-        tree = self.parse_file(file_path)
-        if tree is None:
-            return elements
-
         if not self.element_type or self.element_type == 'class':
-            elements.update(self.get_class_names(tree, file_path))
+            elements.update(self.get_class_names(file_ast, file_path))
 
         if not self.element_type or self.element_type == 'function':
-            elements.update(self.get_function_names(tree, file_path))
+            elements.update(self.get_function_names(file_ast, file_path))
 
         if not self.element_type or self.element_type == 'variable':
-            elements.update(self.get_variable_names(tree, file_path))
+            elements.update(self.get_variable_names(file_ast, file_path))
 
         return elements
 
@@ -71,10 +67,9 @@ class DirectoryCollector(BaseCollector):
         except (SyntaxError, UnicodeDecodeError):
             return None
 
-    def get_class_names(self, tree, file_path: Path) -> Set[CodeElement]:
-        # self.annotate_parent(tree)  # Commented out as per oracle feedback
+    def get_class_names(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         classes = set()
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.ClassDef):
                 full_name = self._get_full_name(node)
                 code_element = CodeElement(
@@ -87,10 +82,9 @@ class DirectoryCollector(BaseCollector):
                 classes.add(code_element)
         return classes
 
-    def get_function_names(self, tree, file_path: Path) -> Set[CodeElement]:
-        # self.annotate_parent(tree)  # Commented out as per oracle feedback
+    def get_function_names(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         functions = set()
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.FunctionDef):
                 full_name = self._get_full_name(node)
                 code_element = CodeElement(
@@ -103,9 +97,9 @@ class DirectoryCollector(BaseCollector):
                 functions.add(code_element)
         return functions
 
-    def get_variable_names(self, tree, file_path: Path) -> Set[CodeElement]:
+    def get_variable_names(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
         variables = set()
-        for node in ast.walk(tree):
+        for node in ast.walk(file_ast):
             if isinstance(node, ast.Assign):
                 for target in node.targets:
                     if isinstance(target, ast.Name):
