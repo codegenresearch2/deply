@@ -1,7 +1,7 @@
 import ast
 import re
 from pathlib import Path
-from typing import List, Set, Tuple
+from typing import List, Set
 
 from deply.collectors import BaseCollector
 from deply.models.code_element import CodeElement
@@ -25,7 +25,7 @@ class FileRegexCollector(BaseCollector):
         collected_elements = set()
 
         for file_path in all_files:
-            elements = self.get_elements_in_file(file_path)
+            elements = self.match_in_file(file_path)
             collected_elements.update(elements)
 
         return collected_elements
@@ -50,7 +50,7 @@ class FileRegexCollector(BaseCollector):
 
         return all_files
 
-    def get_elements_in_file(self, file_path: Path) -> Set[CodeElement]:
+    def match_in_file(self, file_path: Path) -> Set[CodeElement]:
         elements = set()
         tree = self.parse_file(file_path)
         if tree is None:
