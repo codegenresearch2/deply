@@ -62,7 +62,7 @@ class DirectoryCollector(BaseCollector):
             return set()
 
         # Apply collector-specific exclude pattern
-        if self.exclude_regex and self.exclude_regex.match(str(file_path)):
+        if self.exclude_regex and self.exclude_regex.search(str(file_path)):
             return set()
 
         # Check if the file is within the specified directories
