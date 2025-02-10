@@ -1,5 +1,3 @@
-import ast
-from pathlib import Path
 from typing import Any, Dict, List, Set
 
 from deply.models.code_element import CodeElement
@@ -8,46 +6,53 @@ from .base_collector import BaseCollector
 
 class BoolCollector(BaseCollector):
     def __init__(self, config: Dict[str, Any], paths: List[str], exclude_files: List[str]):
+        self.paths = paths
+        self.exclude_files = exclude_files
         self.must_configs = config.get('must', [])
         self.any_of_configs = config.get('any_of', [])
         self.must_not_configs = config.get('must_not', [])
 
-        # Pre-instantiate sub-collectors
+    def collect(self) -> Set[CodeElement]:
         from .collector_factory import CollectorFactory
-        self.must_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_configs]
-        self.any_of_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.any_of_configs]
-        self.must_not_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_not_configs]
 
-    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
+        elements_set = set()
+
+        # Collect elements based on must_configs
         must_sets = []
-        for c in self.must_collectors:
-            must_sets.append(c.match_in_file(file_ast, file_path))
+        for collector_config in self.must_configs:
+            collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
+            must_elements = collector.collect()
+            if must_elements:
+                must_sets.append(must_elements)
+
+        # Collect elements based on any_of_configs
         any_of_sets = []
-        for c in self.any_of_collectors:
-            any_of_sets.append(c.match_in_file(file_ast, file_path))
+        for collector_config in self.any_of_configs:
+            collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
+            any_of_elements = collector.collect()
+            if any_of_elements:
+                any_of_sets.append(any_of_elements)
+
+        # Collect elements based on must_not_configs
         must_not_elements = set()
-        for c in self.must_not_collectors:
-            must_not_elements.update(c.match_in_file(file_ast, file_path))
+        for collector_config in self.must_not_configs:
+            collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
+            not_elements = collector.collect()
+            if not_elements:
+                must_not_elements.update(not_elements)
 
+        # Combine must_sets if any
         if must_sets:
-            must_elements = set.intersection(*must_sets) if must_sets else set()
-        else:
-            must_elements = None
+            elements_set = set.intersection(*must_sets)
 
+        # Combine any_of_sets if any
         if any_of_sets:
-            any_of_elements = set.union(*any_of_sets) if any_of_sets else set()
-        else:
-            any_of_elements = None
+            if elements_set:
+                elements_set = elements_set.union(*any_of_sets)
+            else:
+                elements_set = set.union(*any_of_sets)
 
-        if must_elements is not None and any_of_elements is not None:
-            combined_elements = must_elements & any_of_elements
-        elif must_elements is not None:
-            combined_elements = must_elements
-        elif any_of_elements is not None:
-            combined_elements = any_of_elements
-        else:
-            combined_elements = set()
-
-        final_elements = combined_elements - must_not_elements
+        # Subtract must_not_elements
+        final_elements = elements_set - must_not_elements if elements_set else set()
 
         return final_elements
