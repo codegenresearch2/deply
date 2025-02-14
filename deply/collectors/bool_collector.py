@@ -1,53 +1,39 @@
-import ast
-from pathlib import Path
 from typing import Any, Dict, List, Set
 
+from deply.collectors.base_collector import BaseCollector
+from deply.collectors.collector_factory import CollectorFactory
 from deply.models.code_element import CodeElement
-from .base_collector import BaseCollector
-
 
 class BoolCollector(BaseCollector):
     def __init__(self, config: Dict[str, Any], paths: List[str], exclude_files: List[str]):
-        self.must_configs = config.get('must', [])
-        self.any_of_configs = config.get('any_of', [])
-        self.must_not_configs = config.get('must_not', [])
+        self.config = config
+        self.paths = paths
+        self.exclude_files = exclude_files
 
-        # Pre-instantiate sub-collectors
-        from .collector_factory import CollectorFactory
-        self.must_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_configs]
-        self.any_of_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.any_of_configs]
-        self.must_not_collectors = [CollectorFactory.create(c, paths, exclude_files) for c in self.must_not_configs]
+    def collect_elements(self, configs: List[Dict[str, Any]]) -> Set[CodeElement]:
+        elements_sets = []
+        for collector_config in configs:
+            collector = CollectorFactory.create(collector_config, self.paths, self.exclude_files)
+            elements = collector.collect()
+            elements_sets.append(elements)
+        return elements_sets
 
-    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> Set[CodeElement]:
-        must_sets = []
-        for c in self.must_collectors:
-            must_sets.append(c.match_in_file(file_ast, file_path))
-        any_of_sets = []
-        for c in self.any_of_collectors:
-            any_of_sets.append(c.match_in_file(file_ast, file_path))
-        must_not_elements = set()
-        for c in self.must_not_collectors:
-            must_not_elements.update(c.match_in_file(file_ast, file_path))
+    def process_elements(self, elements_sets: List[Set[CodeElement]], operation: str) -> Set[CodeElement]:
+        if not elements_sets:
+            return set()
+        if operation == 'intersection':
+            return set.intersection(*elements_sets)
+        elif operation == 'union':
+            return set.union(*elements_sets)
 
-        if must_sets:
-            must_elements = set.intersection(*must_sets) if must_sets else set()
-        else:
-            must_elements = None
+    def collect(self) -> Set[CodeElement]:
+        must_elements = self.process_elements(self.collect_elements(self.config.get('must', [])), 'intersection')
+        any_of_elements = self.process_elements(self.collect_elements(self.config.get('any_of', [])), 'union')
+        must_not_elements = set.union(*self.collect_elements(self.config.get('must_not', [])))
 
-        if any_of_sets:
-            any_of_elements = set.union(*any_of_sets) if any_of_sets else set()
-        else:
-            any_of_elements = None
-
-        if must_elements is not None and any_of_elements is not None:
-            combined_elements = must_elements & any_of_elements
-        elif must_elements is not None:
-            combined_elements = must_elements
-        elif any_of_elements is not None:
-            combined_elements = any_of_elements
-        else:
-            combined_elements = set()
-
+        combined_elements = must_elements & any_of_elements
         final_elements = combined_elements - must_not_elements
 
         return final_elements
+
+In the rewritten code, I have separated the collection and processing of elements into two methods. This improves code organization and readability. The `collect_elements` method is responsible for creating collectors based on the given configurations and collecting elements. The `process_elements` method performs set operations based on the operation type ('intersection' or 'union'). The `collect` method uses these helper methods to gather elements according to the boolean logic specified in the config. This makes the collector more flexible and customizable.
