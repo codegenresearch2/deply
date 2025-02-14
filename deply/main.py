@@ -1,187 +1,102 @@
 import argparse
-import ast
 import logging
-import re
 import sys
+import re
 from pathlib import Path
+from typing import List
 
 from deply import __version__
 from deply.rules import RuleFactory
-from .code_analyzer import CodeAnalyzer
-from .collectors.collector_factory import CollectorFactory
-from .config_parser import ConfigParser
-from .models.code_element import CodeElement
-from .models.layer import Layer
-from .models.violation import Violation
-from .reports.report_generator import ReportGenerator
+from deply.code_analyzer import CodeAnalyzer
+from deply.collectors import CollectorFactory
+from deply.config_parser import ConfigParser
+from deply.models.code_element import CodeElement
+from deply.models.layer import Layer
+from deply.models.violation import Violation
+from deply.reports.report_generator import ReportGenerator
 
+class Deply:
+    def __init__(self, config_path: Path):
+        self.config = ConfigParser(config_path).parse()
+        self.layers = {}
+        self.code_element_to_layer = {}
+        self.collectors = self.initialize_collectors()
+        self.rules = RuleFactory.create_rules(self.config['ruleset'])
+        self.violations = set()
+        self.metrics = {'total_dependencies': 0}
+
+    def initialize_collectors(self) -> List[CollectorFactory]:
+        collectors = []
+        for layer_config in self.config['layers']:
+            for collector_config in layer_config.get('collectors', []):
+                collectors.append(CollectorFactory.create(collector_config, self.config['paths'], self.config['exclude_files']))
+        return collectors
+
+    def collect_code_elements(self):
+        for layer_config in self.config['layers']:
+            layer_name = layer_config['name']
+            collected_elements = set()
+            for collector in self.collectors:
+                if re.match(collector.file_regex, layer_config['name']):
+                    collected = collector.collect()
+                    collected_elements.update(collected)
+            layer = Layer(name=layer_name, code_elements=collected_elements, dependencies=set())
+            self.layers[layer_name] = layer
+            for element in collected_elements:
+                self.code_element_to_layer[element] = layer_name
+
+    def dependency_handler(self, dependency):
+        source_element = dependency.code_element
+        target_element = dependency.depends_on_code_element
+        source_layer = self.code_element_to_layer.get(source_element)
+        target_layer = self.code_element_to_layer.get(target_element)
+        self.metrics['total_dependencies'] += 1
+        if not target_layer:
+            return
+        for rule in self.rules:
+            violation = rule.check(source_layer, target_layer, dependency)
+            if violation:
+                self.violations.add(violation)
+
+    def analyze(self):
+        analyzer = CodeAnalyzer(code_elements=set(self.code_element_to_layer.keys()), dependency_handler=self.dependency_handler)
+        analyzer.analyze()
+
+    def generate_report(self, format: str) -> str:
+        report_generator = ReportGenerator(list(self.violations))
+        return report_generator.generate(format=format)
 
 def main():
     parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
     parser.add_argument('-V', '--version', action='store_true', help='Show the version number and exit')
     parser.add_argument('-v', '--verbose', action='count', default=1, help='Increase output verbosity')
-
-    subparsers = parser.add_subparsers(dest='command', help='Sub-commands')
-    parser_analyze = subparsers.add_parser('analyze', help='Analyze the project dependencies')
-    parser_analyze.add_argument('--config', type=str, default="deply.yaml", help="Path to the configuration YAML file")
-    parser_analyze.add_argument('--report-format', type=str, choices=["text", "json", "html"], default="text",
-                                help="Format of the output report")
-    parser_analyze.add_argument('--output', type=str, help="Output file for the report")
+    parser.add_argument('--config', type=str, default="deply.yaml", help="Path to the configuration YAML file")
+    parser.add_argument('--report-format', type=str, choices=["text", "json", "html"], default="text", help="Format of the output report")
+    parser.add_argument('--output', type=str, help="Output file for the report")
     args = parser.parse_args()
 
     if args.version:
-        version = __version__
-        print(f"deply {version}")
+        print(f"deply {__version__}")
         sys.exit(0)
 
-    # Set up logging
-    log_level = logging.WARNING  # Default log level
-    if args.verbose == 1:
-        log_level = logging.INFO
-    elif args.verbose >= 2:
-        log_level = logging.DEBUG
+    logging.basicConfig(level=logging.INFO if args.verbose == 1 else logging.DEBUG)
 
-    logging.basicConfig(
-        level=log_level,
-        format='[%(asctime)s] [%(levelname)s] %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
-    )
+    deply = Deply(Path(args.config))
+    deply.collect_code_elements()
+    deply.analyze()
+    report = deply.generate_report(args.report_format)
 
-    if args.command is None:
-        args = parser.parse_args(['analyze'] + sys.argv[1:])
-
-    logging.info("Starting Deply analysis...")
-
-    # Parse configuration
-    config_path = Path(args.config)
-    logging.info(f"Using configuration file: {config_path}")
-    config = ConfigParser(config_path).parse()
-
-    # Collect paths and excluded files
-    paths = [Path(p) for p in config["paths"]]
-    exclude_files = [re.compile(pattern) for pattern in config["exclude_files"]]
-
-    # Prepare layer configuration
-    layers_config = config["layers"]
-    ruleset = config["ruleset"]
-
-    # Map layer collectors
-    logging.info("Mapping layer collectors...")
-    layer_collectors = []
-    for layer_config in layers_config:
-        layer_name = layer_config["name"]
-        collector_configs = layer_config.get("collectors", [])
-        for collector_config in collector_configs:
-            collector = CollectorFactory.create(
-                config=collector_config,
-                paths=[str(p) for p in paths],
-                exclude_files=[p.pattern for p in exclude_files])
-            layer_collectors.append((layer_name, collector))
-
-    # Collect all files
-    logging.info("Collecting all files...")
-    all_files = []
-    for base_path in paths:
-        if not base_path.exists():
-            continue
-        files = [f for f in base_path.rglob("*.py") if f.is_file()]
-
-        def is_excluded(file_path: Path) -> bool:
-            relative_path = str(file_path.relative_to(base_path))
-            return any(pattern.search(relative_path) for pattern in exclude_files)
-
-        files = [f for f in files if not is_excluded(f)]
-        all_files.extend(files)
-
-    # Initialize layers
-    layers: dict[str, Layer] = {}
-    for layer_config in layers_config:
-        layers[layer_config["name"]] = Layer(name=layer_config["name"], code_elements=set(), dependencies=set())
-
-    code_element_to_layer: dict[CodeElement, str] = {}
-    logging.info("Collecting code elements for each layer...")
-    for file_path in all_files:
-        try:
-            with open(file_path, "r", encoding="utf-8") as f:
-                file_content = f.read()
-            file_ast = ast.parse(file_content, filename=str(file_path))
-        except:
-            continue
-
-        # Match collectors
-        for layer_name, collector in layer_collectors:
-            matched = collector.match_in_file(file_ast, file_path)
-            for m in matched:
-                layers[layer_name].code_elements.add(m)
-                code_element_to_layer[m] = layer_name
-
-    for ln, l in layers.items():
-        logging.info(f"Layer '{ln}' collected {len(l.code_elements)} code elements.")
-
-    # Prepare the dependency rule
-    logging.info("Preparing dependency rules...")
-    rules = RuleFactory.create_rules(ruleset)
-
-    # Initialize a list to collect violations and metrics
-    violations: set[Violation] = set()
-    metrics = {
-        'total_dependencies': 0,
-    }
-
-    # Define the dependency handler function
-    def dependency_handler(dependency):
-        source_element = dependency.code_element
-        target_element = dependency.depends_on_code_element
-
-        # Determine the layers of the source and target elements
-        source_layer = code_element_to_layer.get(source_element)
-        target_layer = code_element_to_layer.get(target_element)
-
-        # Increment total dependencies metric
-        metrics['total_dependencies'] += 1
-
-        # Skip if target element is not mapped to a layer
-        if not target_layer:
-            return
-
-        # Check the dependency against the rules immediately
-        for rule in rules:
-            violation = rule.check(source_layer, target_layer, dependency)
-            if violation:
-                violations.add(violation)
-
-    # Analyze code to find dependencies and check them immediately
-    logging.info("Analyzing code and checking dependencies ...")
-    analyzer = CodeAnalyzer(
-        code_elements=set(code_element_to_layer.keys()),
-        dependency_handler=dependency_handler  # Pass the handler to the analyzer
-    )
-    analyzer.analyze()
-
-    logging.info(f"Analysis complete. Found {metrics['total_dependencies']} dependencies(s).")
-
-    # Generate report
-    logging.info("Generating report...")
-    report_generator = ReportGenerator(list(violations))
-    report = report_generator.generate(format=args.report_format)
-
-    # Output the report
     if args.output:
-        output_path = Path(args.output)
-        output_path.write_text(report)
-        logging.info(f"Report written to {output_path}")
+        Path(args.output).write_text(report)
     else:
-        print("\n")
         print(report)
 
-    # Exit with appropriate status
-    if violations:
-        print(f"\nTotal violation(s): {len(violations)}")
-        exit(1)
+    if deply.violations:
+        print(f"\nTotal violation(s): {len(deply.violations)}")
+        sys.exit(1)
     else:
         print("\nNo violations detected.")
-        exit(0)
-
+        sys.exit(0)
 
 if __name__ == "__main__":
     main()
