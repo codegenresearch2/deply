@@ -6,12 +6,12 @@ from pathlib import Path
 
 import yaml
 
+from deply.main import main
 from deply.collectors import FileRegexCollector, ClassInheritsCollector
 from deply.collectors.bool_collector import BoolCollector
 from deply.collectors.class_name_regex_collector import ClassNameRegexCollector
 from deply.collectors.decorator_usage_collector import DecoratorUsageCollector
 from deply.collectors.directory_collector import DirectoryCollector
-from deply.main import main
 
 
 class TestCollectors(unittest.TestCase):
