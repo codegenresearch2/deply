@@ -1,5 +1,4 @@
 import argparse
-import sys
 from pathlib import Path
 
 from .code_analyzer import CodeAnalyzer
@@ -10,19 +9,18 @@ from .models.dependency import Dependency
 from .models.layer import Layer
 from .reports.report_generator import ReportGenerator
 from .rules.dependency_rule import DependencyRule
-
+from contextlib import redirect_stdout, redirect_stderr
+import io
 
 def main():
-    parser = argparse.ArgumentParser(prog="deply", description='Deply - A dependency analysis tool')
-    subparsers = parser.add_subparsers(dest='command', help='Sub-commands')
-    parser_analyse = subparsers.add_parser('analyze', help='Analyze the project dependencies')
-    parser_analyse.add_argument("--config", type=str, default="deply.yaml", help="Path to the configuration YAML file")
-    parser_analyse.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
-                                help="Format of the output report")
-    parser_analyse.add_argument("--output", type=str, help="Output file for the report")
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(prog="deply", description='Deply')
+    parser.add_argument("--config", required=True, type=str, help="Path to the configuration YAML file")
+    parser.add_argument("--report-format", type=str, choices=["text", "json", "html"], default="text",
+                        help="Format of the output report")
+    parser.add_argument("--output", type=str, help="Output file for the report")
     args = parser.parse_args()
-    if not args.command:
-        args = parser.parse_args(['analyze'] + sys.argv[1:])
+
     config_path = Path(args.config)
 
     # Parse configuration
@@ -85,6 +83,16 @@ def main():
     else:
         exit(0)
 
-
-if __name__ == "__main__":
-    main()
+def run_main_with_captured_output(config_path: str, report_format: str, output: str = None) -> (str, str, int):
+    # Capture the output
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        try:
+            # Run main with the test config
+            sys.argv = ['main.py', 'analyze', '--config', str(config_path), '--report-format', report_format]
+            if output:
+                sys.argv.extend(['--output', str(output)])
+            main()
+        except SystemExit as e:
+            exit_code = e.code
+    return out.getvalue(), err.getvalue(), exit_code
