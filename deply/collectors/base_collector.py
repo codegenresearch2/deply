@@ -1,11 +1,1 @@
-import ast
-from abc import ABC, abstractmethod
-from pathlib import Path
-
-from ..models.code_element import CodeElement
-
-
-class BaseCollector(ABC):
-    @abstractmethod
-    def match_in_file(self, file_ast: ast.AST, file_path: Path) -> set[CodeElement]:
-        pass
+from abc import ABC, abstractmethod\\nfrom typing import Set\\nfrom ..models.code_element import CodeElement\\n\\nclass BaseCollector(ABC):\\n    def __init__(self, config: dict, paths: List[str], exclude_files: List[str]):\\n        self.config = config\\n        self.paths = paths\\n        self.exclude_files = exclude_files\\n\\n    def collect(self) -> Set[CodeElement]:\\n        elements = set()\\n        for path in self.paths:\\n            if self._should_process_file(path):\\n                file_content = self._read_file(path)\\n                file_ast = self._parse_ast(file_content)\\n                elements.update(self._collect_from_ast(file_ast, path))\\n        return elements\\n\\n    def _should_process_file(self, file_path: str) -> bool:\\n        return not self._excluded_file(file_path)\\n\\n    def _excluded_file(self, file_path: str) -> bool:\\n        for exclude in self.exclude_files:\\n            if re.search(exclude, file_path):\\n                return True\\n        return False\\n\\n    def _read_file(self, file_path: str) -> str:\\n        with open(file_path, 'r') as file:\\n            return file.read()\\n\\n    def _parse_ast(self, file_content: str) -> ast.AST:\\n        return ast.parse(file_content)\\n\\n    def _collect_from_ast(self, file_ast: ast.AST, file_path: str) -> Set[CodeElement]:\\n        collector = self._get_collector_instance()\\n        return collector.match_in_file(file_ast, file_path)\\n\\n    def _get_collector_instance(self):\\n        if not hasattr(self, '_collector_instance'):\\n            self._collector_instance = ClassInheritsCollector(self.config, self.paths, self.exclude_files)\\n        return self._collector_instance"
