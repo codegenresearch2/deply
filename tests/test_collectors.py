@@ -6,12 +6,16 @@ from pathlib import Path
 
 import yaml
 
-from deply.collectors import FileRegexCollector, ClassInheritsCollector
-from deply.collectors.bool_collector import BoolCollector
-from deply.collectors.class_name_regex_collector import ClassNameRegexCollector
-from deply.collectors.decorator_usage_collector import DecoratorUsageCollector
-from deply.collectors.directory_collector import DirectoryCollector
 from deply.main import main
+from deply.collectors import (
+    FileRegexCollector,
+    ClassInheritsCollector,
+    ClassNameRegexCollector,
+    DirectoryCollector,
+    DecoratorUsageCollector,
+    BoolCollector
+)
+from deply.collectors.collector_factory import CollectorFactory
 
 
 class TestCollectors(unittest.TestCase):
@@ -203,7 +207,7 @@ class TestCollectors(unittest.TestCase):
             yaml.dump(config_data, f)
         with self.capture_output() as (out, err):
             try:
-                sys.argv = ['main.py', 'analyze', '--config', str(config_yaml)]
+                sys.argv = ['main.py', '--config', str(config_yaml)]
                 main()
             except SystemExit as e:
                 exit_code = e.code
