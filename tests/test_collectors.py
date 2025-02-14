@@ -1,4 +1,3 @@
-import ast
 import shutil
 import sys
 import tempfile
@@ -61,40 +60,14 @@ class TestCollectors(unittest.TestCase):
         # Remove temporary directory
         shutil.rmtree(self.test_dir)
 
-    def run_collector(self, collector, paths, exclude_files):
-        all_elements = set()
-        for base_path_str in paths:
-            base_path = Path(base_path_str)
-            if not base_path.exists():
-                continue
-            files = [f for f in base_path.rglob("*.py") if f.is_file()]
-
-            # Apply global exclude patterns
-            def is_excluded(file_path: Path) -> bool:
-                relative_path = str(file_path.relative_to(base_path))
-                return any(pattern.search(relative_path) for pattern in exclude_files)
-
-            files = [f for f in files if not is_excluded(f)]
-
-            for f in files:
-                try:
-                    with open(f, "r", encoding="utf-8") as file:
-                        file_content = file.read()
-                    file_ast = ast.parse(file_content, filename=str(f))
-                except:
-                    continue
-
-                matched = collector.match_in_file(file_ast, f)
-                all_elements.update(matched)
-
-        return all_elements
-
     def test_class_inherits_collector(self):
-        collector_config = {'base_class': 'BaseModel'}
+        collector_config = {
+            'base_class': 'BaseModel',
+        }
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassInheritsCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         collected_class_names = {element.name for element in collected_elements}
         expected_classes = {'UserModel'}
         self.assertEqual(collected_class_names, expected_classes)
@@ -106,7 +79,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = FileRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         collected_class_names = {element.name for element in collected_elements}
         expected_classes = {'BaseController', 'UserController'}
         self.assertEqual(collected_class_names, expected_classes)
@@ -118,7 +91,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         collected_class_names = {element.name for element in collected_elements}
         expected_classes = {'UserController', 'UserModel', 'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
@@ -130,7 +103,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = DirectoryCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         collected_class_names = {element.name for element in collected_elements}
         expected_classes = {'BaseService', 'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
@@ -142,7 +115,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         collected_names = {element.name for element in collected_elements}
         expected_names = {'UserController'}
         self.assertEqual(collected_names, expected_names)
@@ -152,7 +125,7 @@ class TestCollectors(unittest.TestCase):
             'decorator_regex': '^.*decorator$',
         }
         collector = DecoratorUsageCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         collected_names = {element.name for element in collected_elements}
         expected_names = {'UserService', 'helper_function'}
         self.assertEqual(collected_names, expected_names)
@@ -164,7 +137,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = ClassNameRegexCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         self.assertEqual(len(collected_elements), 0)
 
     def test_bool_collector(self):
@@ -182,7 +155,7 @@ class TestCollectors(unittest.TestCase):
         paths = [str(self.test_project_dir)]
         exclude_files = []
         collector = BoolCollector(collector_config, paths, exclude_files)
-        collected_elements = self.run_collector(collector, paths, exclude_files)
+        collected_elements = collector.collect()
         collected_class_names = {element.name for element in collected_elements}
         expected_classes = {'UserService'}
         self.assertEqual(collected_class_names, expected_classes)
@@ -228,7 +201,7 @@ class TestCollectors(unittest.TestCase):
         }
         with config_yaml.open('w') as f:
             yaml.dump(config_data, f)
-        with self.capture_output() as (out, err):
+        with captured_output() as (out, err):
             try:
                 sys.argv = ['main.py', 'analyze', '--config', str(config_yaml)]
                 main()
@@ -239,22 +212,14 @@ class TestCollectors(unittest.TestCase):
         self.assertIn("Layer 'controllers_layer' is not allowed to depend on layer 'models_layer'", output)
 
     @staticmethod
-    def capture_output():
-        from contextlib import contextmanager
-        from io import StringIO
-        import sys
-
-        @contextmanager
-        def _capture_output():
-            new_out, new_err = StringIO(), StringIO()
-            old_out, old_err = sys.stdout, sys.stderr
-            try:
-                sys.stdout, sys.stderr = new_out, new_err
-                yield sys.stdout, sys.stderr
-            finally:
-                sys.stdout, sys.stderr = old_out, old_err
-
-        return _capture_output()
+    def captured_output():
+        new_out, new_err = StringIO(), StringIO()
+        old_out, old_err = sys.stdout, sys.stderr
+        try:
+            sys.stdout, sys.stderr = new_out, new_err
+            yield sys.stdout, sys.stderr
+        finally:
+            sys.stdout, sys.stderr = old_out, old_err
 
 
 if __name__ == '__main__':
